@@ -47,21 +47,17 @@ function TransportPage() {
   const schedules = arrayify(schedulesQuery.data);
 
   const filteredRoutes = routes.filter((r) =>
-    (r.name || r.destination || "")
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
+    (r.type || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredStations = stations.filter((s) =>
-    (s.name || s.location || "")
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
+    (s.name || s.city || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredSchedules = schedules.filter((s) =>
-    (s.route_name || s.departure || "")
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
+    searchQuery === "" ||
+    String(s.price || "").includes(searchQuery) ||
+    formatTime(s.departure_time).includes(searchQuery)
   );
 
   return (
@@ -164,6 +160,24 @@ function TransportPage() {
   );
 }
 
+function formatTime(isoString) {
+  if (!isoString) return "—";
+  try {
+    return new Date(isoString).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return isoString;
+  }
+}
+
+function formatDate(isoString) {
+  if (!isoString) return "—";
+  try {
+    return new Date(isoString).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return isoString;
+  }
+}
+
 function parseTransportTab(value) {
   const tab = typeof value === "string" ? value.toLowerCase() : "routes";
   const allowed = new Set(["routes", "schedules", "stations"]);
@@ -172,32 +186,43 @@ function parseTransportTab(value) {
 
 function RouteCard({ route }) {
   const { t } = useI18n();
+  const typeLabel = route.type
+    ? route.type.charAt(0).toUpperCase() + route.type.slice(1)
+    : t("transport.unnamedRoute");
+  const statusLabel = route.is_active ? t("transport.active") : t("transport.inactive");
+
   return (
     <div className="rounded-lg border border-border bg-card p-6 transition hover:border-[var(--color-gold)]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
-          <h3 className="font-display text-xl">{route.name || t("transport.unnamedRoute")}</h3>
+          <h3 className="font-display text-xl">{typeLabel}</h3>
           <div className="mt-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <span>{route.origin} → {route.destination}</span>
-            </div>
-            {route.distance && (
-              <div className="text-sm text-muted-foreground">
-                Distance: {route.distance} km
-              </div>
-            )}
-            {route.duration && (
+            {route.duration_minutes && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                <span>{route.duration}</span>
+                <span>{route.duration_minutes} min</span>
+              </div>
+            )}
+            {route.base_fare != null && (
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <DollarSign className="h-4 w-4" />
+                <span>
+                  {t("transport.from")} KES {route.base_fare.toLocaleString()}
+                </span>
               </div>
             )}
           </div>
         </div>
         <div className="text-right">
-          <span className="inline-flex items-center rounded-full bg-[var(--color-gold)]/20 px-3 py-1 text-xs uppercase tracking-widest text-[var(--color-ink)]">
-            {route.status || t("transport.active")}
+          <span
+            className={
+              "inline-flex items-center rounded-full px-3 py-1 text-xs uppercase tracking-widest " +
+              (route.is_active
+                ? "bg-[var(--color-gold)]/20 text-[var(--color-ink)]"
+                : "bg-muted text-muted-foreground")
+            }
+          >
+            {statusLabel}
           </span>
         </div>
       </div>
@@ -207,18 +232,22 @@ function RouteCard({ route }) {
 
 function ScheduleCard({ schedule }) {
   const { t } = useI18n();
+  const depDate = formatDate(schedule.departure_time);
+  const depTime = formatTime(schedule.departure_time);
+  const arrTime = formatTime(schedule.arrival_time);
+
   return (
     <div className="rounded-lg border border-border bg-card p-6 transition hover:border-[var(--color-gold)]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h3 className="font-display text-xl">
-            {schedule.route_name || t("transport.schedule")}
+            {depDate}
           </h3>
           <div className="mt-3 space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>
-                {schedule.departure || t("transport.dash")} → {schedule.arrival || t("transport.dash")}
+                {depTime} → {arrTime}
               </span>
             </div>
             {schedule.available_seats !== undefined && (
@@ -227,10 +256,10 @@ function ScheduleCard({ schedule }) {
                 <span>{schedule.available_seats} {t("transport.seatsAvailable")}</span>
               </div>
             )}
-            {schedule.price && (
+            {schedule.price != null && (
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <DollarSign className="h-4 w-4" />
-                <span>${schedule.price}</span>
+                <span>KES {Number(schedule.price).toLocaleString()}</span>
               </div>
             )}
           </div>
@@ -245,20 +274,29 @@ function ScheduleCard({ schedule }) {
 
 function StationCard({ station }) {
   const { t } = useI18n();
+  const locationLabel = [station.city, station.region, station.country]
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <div className="rounded-lg border border-border bg-card p-6 transition hover:border-[var(--color-gold)]">
-      <h3 className="font-display text-lg">{station.name || t("transport.station")}</h3>
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-display text-lg">{station.name || t("transport.station")}</h3>
+        {station.type && (
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs capitalize text-muted-foreground">
+            {station.type}
+          </span>
+        )}
+      </div>
       <div className="mt-3 space-y-2">
-        {station.location && (
+        {locationLabel && (
           <div className="flex items-start gap-2 text-sm text-muted-foreground">
             <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
-            <span>{station.location}</span>
+            <span>{locationLabel}</span>
           </div>
         )}
-        {station.contact && (
-          <div className="text-sm text-muted-foreground">
-            📞 {station.contact}
-          </div>
+        {station.street && (
+          <div className="text-sm text-muted-foreground pl-6">{station.street}</div>
         )}
       </div>
     </div>

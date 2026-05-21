@@ -219,6 +219,8 @@ export const de = {
     noStations: "Keine Stationen gefunden.",
     unnamedRoute: "Unbenannte Route",
     active: "Aktiv",
+    inactive: "Inaktiv",
+    from: "Ab",
     schedule: "Fahrplan",
     dash: "-",
     seatsAvailable: "Plaetze verfuegbar",

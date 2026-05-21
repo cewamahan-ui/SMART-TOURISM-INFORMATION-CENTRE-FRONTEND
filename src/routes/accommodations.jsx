@@ -63,12 +63,20 @@ function AccommodationsPage() {
     retry: false,
   });
 
-  const accommodations = arrayify(accommodationsQuery.data) || FALLBACK_ACCOMMODATIONS;
-  const filtered = accommodations.filter((a) =>
-    (a.name || "")
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
+  const rawAccommodations = arrayify(accommodationsQuery.data);
+  const accommodations =
+    rawAccommodations.length > 0 ? rawAccommodations : FALLBACK_ACCOMMODATIONS;
+
+  const filtered = accommodations
+    .filter((a) =>
+      (a.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .filter((a) => {
+      const price = a.price_per_night ?? a.min_price;
+      if (tab === "budget") return price != null && price < 200;
+      if (tab === "luxury") return price != null && price >= 500;
+      return true;
+    });
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -135,7 +143,11 @@ function AccommodationsPage() {
 
 function AccommodationCard({ accommodation, idx }) {
   const { t } = useI18n();
-  const img = accommodation.image || FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
+  // API returns image_url; fallback images used when no URL is available
+  const img =
+    accommodation.image_url ||
+    accommodation.image ||
+    FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
 
   const amenities = accommodation.amenities || [];
   const amenityIcons = {
@@ -173,12 +185,13 @@ function AccommodationCard({ accommodation, idx }) {
           {accommodation.location}
         </div>
 
-        {accommodation.rooms && (
+        {(accommodation.room_count ?? accommodation.rooms) ? (
           <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
             <Users className="h-4 w-4" />
-            {accommodation.rooms} {t("accommodations.roomsAvailable")}
+            {accommodation.room_count ?? accommodation.rooms}{" "}
+            {t("accommodations.roomsAvailable")}
           </div>
-        )}
+        ) : null}
 
         {accommodation.reviews && (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -205,11 +218,11 @@ function AccommodationCard({ accommodation, idx }) {
         )}
 
         <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
-          {accommodation.price_per_night && (
+          {(accommodation.price_per_night ?? accommodation.min_price) != null && (
             <div>
               <div className="eyebrow">{t("accommodations.from")}</div>
               <div className="font-display text-lg">
-                ${accommodation.price_per_night}
+                ${accommodation.price_per_night ?? accommodation.min_price}
               </div>
               <p className="text-xs text-muted-foreground">{t("accommodations.perNight")}</p>
             </div>

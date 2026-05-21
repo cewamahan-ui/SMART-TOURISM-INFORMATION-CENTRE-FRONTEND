@@ -23,7 +23,12 @@ export function AuthProvider({ children }) {
         setUser(r?.user ?? { email });
     };
     const signUp = async (email, password, full_name) => {
-        await auth.register({ email, password, full_name });
+        // Derive a base username from the email prefix (alphanumeric only),
+        // then append a 4-digit random suffix so it's very unlikely to collide.
+        // The backend will still auto-increment if it does.
+        const base = email.split("@")[0].replace(/[^A-Za-z0-9]/g, "").toLowerCase() || "user";
+        const username = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+        await auth.register({ email, password, username, full_name });
         await signIn(email, password);
     };
     const signOut = () => {

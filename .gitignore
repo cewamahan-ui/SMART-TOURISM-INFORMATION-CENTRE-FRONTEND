@@ -30,3 +30,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Additional common ignores
+coverage/
+.cache/
+.parcel-cache/
+.next/
+*.zone.identifier
+*.lock
+build/
+tmp/
+temp/
+out/

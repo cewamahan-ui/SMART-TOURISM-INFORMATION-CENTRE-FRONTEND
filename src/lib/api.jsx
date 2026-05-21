@@ -70,6 +70,7 @@ function normalizeSignupPayload(payload) {
     return {
         ...rest,
         ...(username || full_name ? { username: username ?? full_name } : {}),
+        ...(full_name ? { full_name } : {}),
     };
 }
 export const auth = {
@@ -129,7 +130,7 @@ export const attractionsApi = {
         delete: (attractionId, locale) => api(`/api/v1/attraction-translations/${attractionId}/${locale}`, { method: "DELETE" }),
     },
     amenities: {
-        list: (attractionId) => api(`/api/v1/attraction-amenities/`, { method: "GET" }),
+        list: (attractionId) => api(`/api/v1/attraction-amenities/${attractionId ? `?attraction_id=${attractionId}` : ""}`, { method: "GET" }),
         create: (payload) => api("/api/v1/attraction-amenities/", { method: "POST", json: payload }),
         delete: (attractionId, amenityId) => api(`/api/v1/attraction-amenities/${attractionId}/${amenityId}`, { method: "DELETE" }),
     },

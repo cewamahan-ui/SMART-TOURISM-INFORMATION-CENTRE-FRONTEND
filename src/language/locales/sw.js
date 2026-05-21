@@ -219,6 +219,8 @@ export const sw = {
     noStations: "Hakuna vituo vilivyopatikana.",
     unnamedRoute: "Njia Isiyo na Jina",
     active: "Hai",
+    inactive: "Haifanyi Kazi",
+    from: "Kuanzia",
     schedule: "Ratiba",
     dash: "-",
     seatsAvailable: "viti vinavyopatikana",
