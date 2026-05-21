@@ -1,5 +1,48 @@
 # SafariSmart Frontend
 
+## Quick Start
+
+Follow these steps to set up and run the application locally:
+
+1. **Clone the repository:**
+
+  ```bash
+  git clone <REPO_URL>
+  cd SMART-TOURISM-INFORMATION-CENTRE-FRONTEND
+  ```
+
+2. **Install dependencies:**
+
+  ```bash
+  npm install
+  ```
+
+3. **Set up environment variables:**
+
+  If a `.env.example` file exists, copy it:
+
+  ```bash
+  cp .env.example .env
+  ```
+   
+  Otherwise, create a `.env` file and add:
+
+  ```env
+  VITE_API_BASE_URL=http://localhost:5000
+  ```
+
+4. **Run the development server:**
+
+  ```bash
+  npm run dev
+  ```
+
+5. **Open your browser:**
+
+  Visit [http://localhost:5173](http://localhost:5173) (or the port shown in your terminal) to view the app.
+
+---
+
 A modern React frontend for the Smart Tourism Information Centre experience, built with TanStack Router + Vite.
 
 It includes:
