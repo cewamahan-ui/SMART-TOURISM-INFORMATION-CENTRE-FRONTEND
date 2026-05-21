@@ -9,13 +9,34 @@ Follow these steps to set up and run the application locally:
   ```bash
   git clone <REPO_URL>
   cd SMART-TOURISM-INFORMATION-CENTRE-FRONTEND
-  ```
+
+```
+
+2 **making it run in your computer**
+git pull origin feature/screens- it will show you there are conflicts so run the following after
+
+ git pull --no-rebase
+
+ git pull origin feature/screens- pulling changes from the feature screens
+
+git pull origin feature/screens --allow-unrelated-history
+
+git switch feature/screens
+
+
+
+
+
+
 
 2. **Install dependencies:**
 
   ```bash
   npm install
+
   ```
+if it will not run do npm audit fix
+
 
 3. **Set up environment variables:**
 

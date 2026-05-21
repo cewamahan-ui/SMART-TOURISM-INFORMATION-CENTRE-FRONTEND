@@ -187,12 +187,6 @@ const rootRouteChildren = {
 }
 export const routeTree = rootRouteImport._addFileChildren(rootRouteChildren)
 
-import type { getRouter } from './router.jsx'
-import type { startInstance } from './start.jsx'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
+
+
+
