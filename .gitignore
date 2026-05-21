@@ -7,16 +7,41 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Environment files
+.env
+.env.*
+
+# Test coverage
+coverage/
+
+# Caches and build outputs
+.cache/
+.parcel-cache/
+.next/
+
 node_modules
 dist
 dist-ssr
+
+# Windows/metadata
+*.zone.identifier
+
+# Lock files
+*.lock
+
+# Node modules and dependencies
 .output
+
+# Build outputs (already included above, but for clarity)
 .vinxi
 .tanstack/**
 .nitro
 *.local
 
 # Wrangler / Cloudflare
+
+# Additional common ignores
+.local
 .wrangler/
 .dev.vars
 
