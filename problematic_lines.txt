@@ -1,0 +1,33 @@
+    38	  const [editingAttraction, setEditingAttraction] = useState(null);
+    39	
+    40	  const [registrationForm, setRegistrationForm] = useState({
+    41	    business_name: "",
+    42	    business_type: "attraction",
+    43	    registration_doc: "",
+    44	  });
+    45	
+    46	  const [createForm, setCreateForm] = useState({
+    47	    destination_id: "",
+    48	    business_owner_id: getUserId(user),
+    49	    name: "",
+    50	    category: "",
+    51	    status: "pending",
+    52	    entry_fee: "",
+    53	    description: "",
+    54	    image_url: "",
+    55	    is_wheelchair_accessible: false,
+    56	  });
+    57	        return await businessApi.admin.profiles();
+    58	      } catch {
+    59	        return businessApi.profiles.list();
+    60	      }
+    61	    },
+    62	    enabled: Boolean(user),
+    63	    retry: false,
+    64	  });
+    65	
+    66	  const registrationsQuery = useQuery({
+    67	    queryKey: ["business-dashboard", "registrations"],
+    68	    queryFn: async () => {
+    69	      try {
+    70	        return await businessApi.admin.registrations();

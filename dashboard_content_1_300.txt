@@ -1,0 +1,300 @@
+     1	import { createFileRoute, Link } from "@tanstack/react-router";
+     2	import { useMemo, useState } from "react";
+     3	import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+     4	import { BarChart3, Building2, Calendar, CheckCircle2, CircleAlert, Landmark, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
+     5	import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
+     6	import { SiteHeader } from "@/components/SiteHeader";
+     7	import { SiteFooter } from "@/components/SiteFooter";
+     8	import { useAuth } from "@/lib/auth-context";
+     9	import { attractionsApi, bookingsApi, businessApi, destinationsApi } from "@/lib/api";
+    10	import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+    11	import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+       
+    12	export const Route = createFileRoute("/business-dashboard")({
+    13	  head: () => ({ meta: [{ title: "Business Dashboard — SafariSmart" }] }),
+    14	  component: BusinessDashboardPage,
+    15	});
+       
+    16	const BUSINESS_TYPES = ["hotel", "restaurant", "tour_operator", "transport", "attraction", "other"];
+    17	const STATUS_COLORS = {
+    18	  approved: "#16a34a",
+    19	  pending: "#d97706",
+    20	  rejected: "#dc2626",
+    21	  confirmed: "#16a34a",
+    22	  cancelled: "#dc2626",
+    23	  unknown: "#64748b",
+    24	};
+       
+    25	function BusinessDashboardPage() {
+    26	  const { user } = useAuth();
+    27	  const queryClient = useQueryClient();
+       
+    28	  const [search, setSearch] = useState("");
+    29	  const [statusFilter, setStatusFilter] = useState("all");
+    30	  const [statusDrafts, setStatusDrafts] = useState({});
+       
+    31	  const [createOpen, setCreateOpen] = useState(false);
+    32	  const [editOpen, setEditOpen] = useState(false);
+    33	  const [editingAttraction, setEditingAttraction] = useState(null);
+       
+    34	  const [registrationForm, setRegistrationForm] = useState({
+    35	    business_name: "",
+    36	    business_type: "attraction",
+    37	    registration_doc: "",
+    38	  });
+    39	  const hasBusinessRole = useMemo(() => isBusinessUser(user), [user]);
+    40	  const hasVerifiedBusinessProfile = useMemo(() => profiles.some((p) => Boolean(p.verified || p.is_active)), [profiles]);
+    41	  const dashboardAllowed = hasBusinessRole || hasVerifiedBusinessProfile;
+       
+    42	  const ownRegistration = useMemo(() => {
+    43	    const userId = getUserId(user);
+    44	    if (!userId) return registrations[0] || null;
+    45	    return (
+    46	      registrations.find((registration) => String(registration.user_id || "") === String(userId)) ||
+    47	      registrations[0] ||
+    48	      null
+    49	    );
+    50	  }, [registrations, user]);
+       
+    51	  const updateStatusMutation = useMutation({
+    52	    mutationFn: ({ id, status }) => attractionsApi.update(id, { status }),
+    53	    onSuccess: async () => {
+    54	      await queryClient.invalidateQueries({ queryKey: ["business-dashboard", "attractions"] });
+    55	    },
+    56	  });
+       
+    57	  const deleteAttractionMutation = useMutation({
+    58	    mutationFn: (id) => attractionsApi.delete(id),
+    59	    onSuccess: async () => {
+    60	      await queryClient.invalidateQueries({ queryKey: ["business-dashboard", "attractions"] });
+    61	    },
+    62	  });
+       
+    63	  const registerBusinessMutation = useMutation({
+    64	    mutationFn: (payload) => businessApi.registrations.register(payload),
+    65	    onSuccess: async () => {
+    66	      await queryClient.invalidateQueries({ queryKey: ["business-dashboard", "registrations"] });
+    67	      await queryClient.invalidateQueries({ queryKey: ["business-dashboard", "profiles"] });
+    68	      setRegistrationForm({ business_name: "", business_type: "attraction", registration_doc: "" });
+    69	    },
+    70	  });
+       
+    71	  const createAttractionMutation = useMutation({
+    72	    mutationFn: (payload) => attractionsApi.create(payload),
+    73	    onSuccess: async () => {
+    74	      await queryClient.invalidateQueries({ queryKey: ["business-dashboard", "attractions"] });
+    75	      setCreateOpen(false);
+    76	      setCreateForm({
+    77	        destination_id: "",
+    78	        business_owner_id: getUserId(user),
+    79	        name: "",
+    80	        category: "",
+    81	        status: "pending",
+    82	        entry_fee: "",
+    83	        description: "",
+    84	        image_url: "",
+    85	        is_wheelchair_accessible: false,
+    86	      });
+    87	    },
+    88	                      variant={metrics.registrations > 0 ? "warning" : "ok"}
+    89	                      text={
+    90	                        metrics.registrations > 0
+    91	                          ? `${metrics.registrations} business registrations are waiting review.`
+    92	                          : "No registration backlog."
+    93	                      }
+    94	                    />
+    95	                  </div>
+    96	                </div>
+       
+    97	                <div className="rounded-xl border border-border bg-card p-5">
+    98	                  <h3 className="font-display text-2xl">Recent Bookings</h3>
+    99	                  <div className="mt-4 space-y-3">
+   100	                    {bookings.slice(0, 6).map((booking, index) => (
+   101	                      <div key={booking.id || index} className="rounded-lg border border-border/70 p-3 text-sm">
+   102	                        <div className="flex items-center justify-between gap-3">
+   103	                          <span className="font-medium">{booking.reference_number || `Booking ${index + 1}`}</span>
+   104	                          <StatusPill status={normalizeStatus(booking.status)} />
+   105	                        </div>
+   106	                        <div className="mt-1 text-xs text-muted-foreground">
+   107	                          Total: ${toNumber(booking.total_cost ?? booking.total ?? booking.amount).toFixed(2)}
+   108	                        </div>
+   109	                      </div>
+   110	                    ))}
+   111	                    {bookings.length === 0 && <p className="text-sm text-muted-foreground">No bookings returned yet.</p>}
+   112	                  </div>
+       
+   113	                  <Link
+   114	                    to="/bookings"
+   115	                    className="mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-widest text-foreground underline underline-offset-4"
+   116	                  >
+   117	                    Open full bookings page
+   118	                  </Link>
+   119	                </div>
+   120	              </div>
+   121	            </div>
+   122	        )}
+       
+   123	        {(updateStatusMutation.error || deleteAttractionMutation.error || createAttractionMutation.error || editAttractionMutation.error) && (
+   124	          <div className="mt-6 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+   125	            {extractErrorMessage(
+   126	              updateStatusMutation.error ||
+   127	                deleteAttractionMutation.error ||
+   128	                createAttractionMutation.error ||
+   129	                editAttractionMutation.error,
+   130	            )}
+   131	          </div>
+   132	        )}
+   133	      </section>
+   134	      </>
+       
+   135	      <CreateAttractionModal
+   136	        open={createOpen}
+   137	        onOpenChange={setCreateOpen}
+   138	        form={createForm}
+   139	        setForm={setCreateForm}
+   140	        destinations={destinations}
+   141	        submitting={createAttractionMutation.isPending}
+   142	        onSubmit={() => {
+   143	          const payload = {
+   144	            destination_id: createForm.destination_id,
+   145	            business_owner_id: createForm.business_owner_id || getUserId(user),
+   146	            name: createForm.name.trim(),
+   147	            category: createForm.category.trim() || null,
+   148	            status: createForm.status,
+   149	            entry_fee: toNullableNumber(createForm.entry_fee),
+   150	            description: createForm.description.trim() || null,
+   151	            image_url: createForm.image_url.trim() || null,
+   152	            is_wheelchair_accessible: Boolean(createForm.is_wheelchair_accessible),
+   153	          };
+   154	          void createAttractionMutation.mutate(payload);
+   155	        }}
+   156	      />
+       
+   157	      <EditAttractionModal
+   158	        open={editOpen}
+   159	        onOpenChange={setEditOpen}
+   160	        attraction={editingAttraction}
+   161	        form={editForm}
+   162	        setForm={setEditForm}
+   163	        submitting={editAttractionMutation.isPending}
+   164	        onSubmit={() => {
+   165	          if (!editingAttraction?.id) return;
+   166	          const payload = {
+   167	            name: editForm.name.trim(),
+   168	            category: editForm.category.trim() || null,
+   169	            status: editForm.status,
+   170	            entry_fee: toNullableNumber(editForm.entry_fee),
+   171	            description: editForm.description.trim() || null,
+   172	            image_url: editForm.image_url.trim() || null,
+   173	            is_wheelchair_accessible: Boolean(editForm.is_wheelchair_accessible),
+   174	          };
+   175	          void editAttractionMutation.mutate({ id: editingAttraction.id, payload });
+   176	        }}
+   177	      />
+       
+   178	      <SiteFooter />
+   179	    </>
+       
+   180	// Placeholder Kenya-style location data
+   181	const COUNTY_DATA = [
+   182	  {
+   183	    name: "Nairobi",
+   184	    subCounties: [
+   185	      {
+   186	        name: "Westlands",
+   187	        wards: [
+   188	          { name: "Parklands/Highridge", gps: "-1.2647,36.8121" },
+   189	          { name: "Kangemi", gps: "-1.2601,36.7381" },
+   190	        ],
+   191	      },
+   192	      {
+   193	        name: "Lang'ata",
+   194	        wards: [
+   195	          { name: "Karen", gps: "-1.3292,36.7209" },
+   196	          { name: "Nairobi West", gps: "-1.3123,36.8155" },
+   197	        ],
+   198	      },
+   199	    ],
+   200	  },
+   201	  {
+   202	    name: "Mombasa",
+   203	    subCounties: [
+   204	      {
+   205	        name: "Mvita",
+   206	        wards: [
+   207	          { name: "Tudor", gps: "-4.0435,39.6682" },
+   208	          { name: "Ganjoni", gps: "-4.0621,39.6666" },
+   209	        ],
+   210	      },
+   211	    ],
+   212	  },
+   213	];
+       
+   214	function CreateAttractionModal({ open, onOpenChange, form, setForm, destinations, submitting, onSubmit }) {
+   215	  // Cascading selectors state
+   216	  const [county, setCounty] = useState("");
+   217	  const [subCounty, setSubCounty] = useState("");
+   218	  const [ward, setWard] = useState("");
+   219	  const [gps, setGps] = useState("");
+       
+   220	  // Update cascading options
+   221	  const countyObj = COUNTY_DATA.find((c) => c.name === county);
+   222	  const subCountyObj = countyObj?.subCounties.find((s) => s.name === subCounty);
+   223	  const wardObj = subCountyObj?.wards.find((w) => w.name === ward);
+       
+   224	  // When ward changes, auto-fill GPS
+   225	  React.useEffect(() => {
+   226	    if (wardObj) {
+   227	      setGps(wardObj.gps);
+   228	    }
+   229	  }, [ward]);
+       
+   230	  // When any location changes, update destination_id as a stringified location object
+   231	  React.useEffect(() => {
+   232	    if (county && subCounty && ward && gps) {
+   233	      setForm((prev) => ({
+   234	        ...prev,
+   235	        destination_id: JSON.stringify({ county, subCounty, ward, gps }),
+   236	      }));
+   237	    }
+   238	  }, [county, subCounty, ward, gps]);
+       
+   239	  // Modal scrollable and responsive
+   240	  return (
+   241	    <Dialog open={open} onOpenChange={onOpenChange}>
+   242	      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   243	        <DialogHeader>
+   244	          <DialogTitle>Create Attraction</DialogTitle>
+   245	          <DialogDescription>Add a new attraction site to operations tracking.</DialogDescription>
+   246	        </DialogHeader>
+       
+   247	        <form
+   248	          className="grid gap-3 md:grid-cols-2"
+   249	          onSubmit={(event) => {
+   250	            event.preventDefault();
+   251	            onSubmit();
+   252	          }}
+   253	        >
+   254	          <label className="text-sm md:col-span-2">
+   255	            Name
+   256	            <input
+   257	              required
+   258	              value={form.name}
+   259	              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+   260	              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+   261	            />
+   262	          </label>
+       
+   263	          <label className="text-sm">
+   264	            County
+   265	            <select
+   266	              required
+   267	              value={county}
+   268	              onChange={(e) => {
+   269	                setCounty(e.target.value);
+   270	                setSubCounty("");
+   271	                setWard("");
+   272	                setGps("");
+   273	              }}
+   274	              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+   275	            >
