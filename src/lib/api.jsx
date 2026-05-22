@@ -215,6 +215,10 @@ export const businessApi = {
         updateById: (id, payload) => api(`/api/v1/business/profiles/${id}`, { method: "PATCH", json: payload }),
         delete: (id) => api(`/api/v1/business/profiles/${id}`, { method: "DELETE" }),
     },
+    attractions: {
+        // GET /api/v1/business/attractions — attractions owned by the current user's business profile
+        list: () => api("/api/v1/business/attractions", { method: "GET" }),
+    },
     bookings: {
         // GET /api/v1/business/bookings — bookings for the current user's business profile's attractions
         list: () => api("/api/v1/business/bookings", { method: "GET" }),
@@ -398,7 +402,25 @@ export const navigationApi = {
 
 // ── Accommodations ────────────────────────────────────────────────────
 export const accommodationsApi = {
+    list: (params) => {
+        const qs = params ? `?${new URLSearchParams(params)}` : "";
+        return api(`/api/public/accommodations${qs}`, { method: "GET" });
+    },
     getRooms: (accommodationId) => api(`/api/v1/accommodations/${accommodationId}/rooms`, { method: "GET" }),
+    book: (accommodationId, { checkIn, checkOut, roomTypeId, notes } = {}) => {
+        const nights = checkIn && checkOut
+            ? Math.max(1, Math.round((new Date(checkOut) - new Date(checkIn)) / 86400000))
+            : 1;
+        return bookingsApi.create({
+            type: "hotel",
+            items: [{
+                target_type: "accommodation",
+                target_id: accommodationId,
+                quantity: nights,
+                notes: notes ?? (roomTypeId ? `room_type:${roomTypeId}` : undefined),
+            }],
+        });
+    },
 };
 
 // ── Feedback & Reviews ────────────────────────────────────────────────────
