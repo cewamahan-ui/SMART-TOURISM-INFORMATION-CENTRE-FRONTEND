@@ -23,6 +23,7 @@ import { Route as FieldGuideRouteImport } from './routes/field-guide'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as FavouritesRouteImport } from './routes/favourites'
 import { Route as FavoritesRouteImport } from './routes/favorites'
+import { Route as CultureHubRouteImport } from './routes/culture-hub'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as BusinessDashboardRouteImport } from './routes/business-dashboard'
@@ -113,6 +114,11 @@ const FavoritesRoute = FavoritesRouteImport.update({
   path: '/favorites',
   getParentRoute: () => rootRouteImport,
 })
+const CultureHubRoute = CultureHubRouteImport.update({
+  id: '/culture-hub',
+  path: '/culture-hub',
+  getParentRoute: () => rootRouteImport,
+})
 const ExploreRoute = ExploreRouteImport.update({
   id: '/explore',
   path: '/explore',
@@ -173,6 +179,7 @@ const rootRouteChildren = {
   AttractionsRoute: AttractionsRoute,
   BookingsRoute: BookingsRoute,
   BusinessDashboardRoute: BusinessDashboardRoute,
+  CultureHubRoute: CultureHubRoute,
   EventsRoute: EventsRoute,
   ExploreRoute: ExploreRouteWithChildren,
   FavoritesRoute: FavoritesRoute,

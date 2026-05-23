@@ -4,6 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api, getToken } from "@/lib/api";
 
+const SOS_CATEGORIES = [
+  { value: "medical",           label: "Medical Emergency",    emoji: "🏥" },
+  { value: "wildlife",          label: "Wildlife Encounter",   emoji: "🦁" },
+  { value: "lost",              label: "Lost / Stranded",      emoji: "🗺️" },
+  { value: "vehicle_breakdown", label: "Vehicle Breakdown",    emoji: "🚗" },
+  { value: "weather",           label: "Severe Weather",       emoji: "⛈️" },
+  { value: "crime",             label: "Crime / Security",     emoji: "🚨" },
+  { value: "other",             label: "Other Emergency",      emoji: "⚠️" },
+];
+
 export const Route = createFileRoute("/sos")({
   head: () => ({ meta: [{ title: "Emergency Response — SafariSmart" }] }),
   component: SosPage,
@@ -14,6 +24,7 @@ function SosPage() {
   const [sending, setSending] = useState(false);
   const [coords, setCoords] = useState(null);
   const [coordsError, setCoordsError] = useState("");
+  const [category, setCategory] = useState("medical");
   const holdTimer = useRef(null);
 
   useEffect(() => {
@@ -46,7 +57,7 @@ function SosPage() {
     try {
       await api("/api/v1/sos", {
         method: "POST",
-        json: { lat: coords.lat, lng: coords.lng, severity: "high", category: "injury" },
+        json: { lat: coords.lat, lng: coords.lng, severity: "high", category },
       });
       setTriggered(true);
       toast.success("Signal sent · Unit Alpha-01 dispatched", { duration: 6000 });
@@ -93,7 +104,25 @@ function SosPage() {
           Hold button for 1.5 seconds to confirm dispatch
         </p>
 
-        <div className="mt-14 grid gap-8 md:grid-cols-12">
+        {/* Category selector */}
+        <div className="mt-10">
+          <p className="mb-3 text-xs uppercase tracking-widest text-white/50">Type of Emergency</p>
+          <div className="flex flex-wrap gap-2">
+            {SOS_CATEGORIES.map((c) => (
+              <button key={c.value} onClick={() => setCategory(c.value)}
+                disabled={triggered || sending}
+                className={`rounded-full border px-4 py-2 text-xs uppercase tracking-widest transition disabled:opacity-40 ${
+                  category === c.value
+                    ? "border-destructive bg-destructive/20 text-[var(--color-cream)]"
+                    : "border-white/20 text-white/60 hover:border-white/40 hover:text-white/80"
+                }`}>
+                {c.emoji} {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-10 grid gap-8 md:grid-cols-12">
           <div className="md:col-span-7">
             <button
               onMouseDown={handleMouseDown}

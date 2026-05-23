@@ -163,7 +163,7 @@ export const bookingsApi = {
     list: () => api("/api/v1/bookings", { method: "GET" }),
     get: (id) => api(`/api/v1/bookings/${id}`, { method: "GET" }),
     create: (payload) => api("/api/v1/bookings", { method: "POST", json: payload }),
-    cancel: (id) => api(`/api/v1/bookings/${id}/cancel`, { method: "PATCH" }),
+    cancel: (id) => api(`/api/v1/bookings/${id}/cancel`, { method: "PATCH", json: {} }),
     generateQr: (id) => api(`/api/v1/bookings/${id}/qr`, { method: "POST" }),
     adminList: () => api("/api/v1/admin/bookings", { method: "GET" }),
     createTour: (payload) => api("/api/v1/bookings/tour", { method: "POST", json: payload }),
@@ -189,6 +189,7 @@ export const rbacApi = {
         create: (payload) => api("/api/v1/roles", { method: "POST", json: payload }),
         update: (id, payload) => api(`/api/v1/roles/${id}`, { method: "PUT", json: payload }),
         delete: (id) => api(`/api/v1/roles/${id}`, { method: "DELETE" }),
+        getPermissions: (id) => api(`/api/v1/roles/${id}/permissions`, { method: "GET" }),
     },
     permissions: {
         list: () => api("/api/v1/permissions", { method: "GET" }),
@@ -199,10 +200,12 @@ export const rbacApi = {
     },
     rolePermissions: {
         create: (payload) => api("/api/v1/role-permissions", { method: "POST", json: payload }),
+        delete: (roleId, permissionId) => api("/api/v1/role-permissions", { method: "DELETE", json: { role_id: roleId, permission_id: permissionId } }),
     },
     userRoles: {
         list: () => api("/api/v1/user-roles", { method: "GET" }),
         create: (payload) => api("/api/v1/user-roles", { method: "POST", json: payload }),
+        delete: (userId, roleId) => api("/api/v1/user-roles", { method: "DELETE", json: { user_id: userId, role_id: roleId } }),
         getByUser: (userId) => api(`/api/v1/user/${userId}/roles`, { method: "GET" }),
     },
 };
@@ -398,6 +401,18 @@ export const recommendationsApi = {
     get: () => api("/api/v1/recommendations", { method: "GET" }),
 };
 
+// ── Culture Hub ────────────────────────────────────────────────────
+export const cultureHubApi = {
+    list: (params) => {
+        const qs = params && Object.keys(params).length ? `?${new URLSearchParams(params)}` : "";
+        return api(`/api/v1/culture-hubs/${qs}`, { method: "GET" });
+    },
+    get: (id) => api(`/api/v1/culture-hubs/${id}`, { method: "GET" }),
+    create: (payload) => api("/api/v1/culture-hubs/", { method: "POST", json: payload }),
+    update: (id, payload) => api(`/api/v1/culture-hubs/${id}`, { method: "PATCH", json: payload }),
+    delete: (id) => api(`/api/v1/culture-hubs/${id}`, { method: "DELETE" }),
+};
+
 // ── Navigation ────────────────────────────────────────────────────
 export const navigationApi = {
     getRoute: (query) => api(`/api/v1/navigation/route?q=${query}`, { method: "GET" }),
@@ -440,6 +455,14 @@ export const feedbackApi = {
             const qs = params ? `?${new URLSearchParams(params)}` : "";
             return api(`/api/v1/feedback/gallery${qs}`, { method: "GET" });
         },
+    },
+    contacts: {
+        list: (destinationId) => {
+            const qs = destinationId ? `?destination_id=${destinationId}` : "";
+            return api(`/api/v1/feedback/contacts${qs}`, { method: "GET" });
+        },
+        create: (payload) => api("/api/v1/feedback/contacts", { method: "POST", json: payload }),
+        delete: (id) => api(`/api/v1/feedback/contacts/${id}`, { method: "DELETE" }),
     },
 };
 

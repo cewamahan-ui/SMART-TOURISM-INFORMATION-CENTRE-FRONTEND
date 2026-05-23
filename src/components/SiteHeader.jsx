@@ -1,11 +1,14 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
-import { Menu, AlertTriangle, Bell, Heart, User, Settings, X, Map } from "lucide-react";
+import { Menu, AlertTriangle, Bell, Heart, User, Settings, X, Map, Globe } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/language/i18n-provider";
-const nav = [
+
+// Non-admin nav items (shown to everyone)
+const navBase = [
   { to: "/explore", key: "explore" },
   { to: "/attractions", label: "Attractions" },
+  { to: "/culture-hub", label: "Culture Hub" },
   { to: "/itinerary", key: "itinerary" },
   { to: "/events", key: "events" },
   { to: "/tour-packages", key: "tourPackages" },
@@ -13,7 +16,6 @@ const nav = [
   { to: "/transport", key: "transport" },
   { to: "/bookings", key: "bookings" },
   { to: "/business-dashboard", key: "businessDashboard" },
-  { to: "/admin-dashboard", key: "adminDashboard" },
   { to: "/notifications", key: "notifications" },
   { to: "/favorites", key: "favorites" },
   { to: "/field-guide", key: "fieldGuide" },
@@ -23,6 +25,9 @@ export function SiteHeader({ transparent = false }) {
 
   const { user, signOut } = useAuth();
   const { t } = useI18n();
+  const nav = user?.is_admin
+    ? [...navBase, { to: "/admin-dashboard", key: "adminDashboard" }]
+    : navBase;
   const navigate = useNavigate();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,

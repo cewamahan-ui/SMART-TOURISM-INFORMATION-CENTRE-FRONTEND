@@ -6,19 +6,69 @@ import { useI18n } from "@/language/i18n-provider";
 import { itinerariesApi } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Calendar, MapPin, Sparkles, Plus, X, ChevronDown, QrCode } from "lucide-react";
+import { Calendar, MapPin, Sparkles, Plus, X, ChevronDown, QrCode, Clock, Coffee, Sunset, Star, Info } from "lucide-react";
 import { toast } from "sonner";
 import QRCode from "react-qr-code";
+import { CURRENCIES, CURRENCY_OPTIONS, CURRENCY_RATES } from "@/lib/currencies";
 export const Route = createFileRoute("/itinerary")({
     head: () => ({ meta: [{ title: "Itinerary — SafariSmart" }] }),
     component: ItineraryPage,
 });
 const SAMPLE = [
-  { day: 1, title: "Arrival · Maasai Mara", detail: "Private transfer to camp + sunset lookout over the reserve.", time: "16:00", stops: [] },
-  { day: 2, title: "Mara Balloon Safari at Dawn", detail: "Sunrise flight above the plains, followed by a bush breakfast.", time: "05:30", stops: [] },
-  { day: 3, title: "Migration Crossing Watch", detail: "Full-day expedition with a local Maasai tracker.", time: "06:00", stops: [] },
-  { day: 4, title: "Lake Nakuru Conservation Walk", detail: "Behind-the-scenes with local conservation guides and rhino zones.", time: "09:00", stops: [] },
-  { day: 5, title: "Departure", detail: "Final game drive + transfer to Wilson Airport, Nairobi.", time: "11:00", stops: [] },
+  {
+    day: 1, title: "Arrival · Maasai Mara", time: "16:00", location: "Maasai Mara, Narok County",
+    detail: "Your safari begins the moment you land. A private 4×4 meets you at Wilson Airport for the scenic 5-hour drive into the heart of the Mara. En route, watch for roadside wildlife and breathtaking escarpment views.",
+    morning: "Depart Nairobi via scenic Narok highway. Stop at the Great Rift Valley viewpoint for panoramic photos.",
+    afternoon: "Arrive at camp. Meet your guide and settle into your accommodation overlooking the savannah.",
+    evening: "Sunset drinks at the lookout point followed by a welcome dinner under the stars with live cultural music.",
+    highlights: ["First sighting of the open savannah", "Welcome Maasai warrior ceremony at camp", "Sundowner over the Mara River"],
+    tips: "Pack a light jacket — evenings in the Mara can be cool even during dry season. Bring binoculars for arrival wildlife spotting.",
+    meals: "Lunch at Narok town · Welcome dinner at camp",
+    stops: [{ name: "Rift Valley Viewpoint" }, { name: "Maasai Mara Gate" }],
+  },
+  {
+    day: 2, title: "Mara Balloon Safari at Dawn", time: "05:30", location: "Maasai Mara",
+    detail: "Rise before the sun for one of Africa's most iconic experiences: a hot-air balloon drift over the Mara plains as the golden light breaks the horizon. Follow wildebeest herds from above, spot sleeping lions, and witness the savannah wake up.",
+    morning: "Pre-dawn pick-up for balloon launch at 06:00. 1.5-hour flight covering 20–30 km over the plains. Traditional champagne bush breakfast upon landing.",
+    afternoon: "Afternoon game drive focusing on the Mara Triangle — prime territory for big cat sightings including cheetah and leopard.",
+    evening: "Bush sundowner at a scenic kopje, sharing stories from the day with your guide.",
+    highlights: ["Aerial view of wildebeest migration trails", "Champagne breakfast in the bush", "Afternoon big-cat game drive"],
+    tips: "The balloon flight is weather-dependent — your guide will confirm the evening before. Bring a warm layer for the pre-dawn start.",
+    meals: "Champagne bush breakfast · Picnic lunch · Dinner at camp",
+    estimated_cost: "Est. balloon: $450/person",
+  },
+  {
+    day: 3, title: "Migration Crossing Watch", time: "06:00", location: "Mara River, Kenya–Tanzania Border",
+    detail: "Today is dedicated to witnessing one of nature's greatest spectacles — the wildebeest river crossing. Spend a full day at Mara River crossing points with a seasoned Maasai tracker who reads animal patterns to predict crossing locations.",
+    morning: "Early start to reach prime river positions before the wildebeest herds gather. Your tracker will read herd movements and guide you to the optimal vantage point.",
+    afternoon: "Picnic lunch in the field. Continue monitoring river crossings — the drama often peaks in early afternoon when temperatures drive herds to water.",
+    evening: "Cultural visit to a traditional Maasai manyatta village. Learn about the boma structure, cattle culture, and warrior traditions.",
+    highlights: ["Witnessing wildebeest river crossing live", "Nile crocodile activity at the crossing", "Meeting Maasai elders and children at the village"],
+    tips: "Patience is key — crossings are unpredictable. Bring snacks, a good hat, and sunscreen. Avoid standing or making noise near the river bank.",
+    meals: "Packed field lunch · Village cultural dinner",
+    stops: [{ name: "Mara River Crossing Point" }, { name: "Maasai Village" }, { name: "Keekorok Area" }],
+  },
+  {
+    day: 4, title: "Lake Nakuru Conservation Walk", time: "09:00", location: "Lake Nakuru National Park",
+    detail: "Transfer north to Lake Nakuru — a UNESCO-recognized Biosphere Reserve and the flamingo capital of the world. Walk with conservation rangers through rhino sanctuary zones and learn about Kenya's pioneering black rhino protection programme.",
+    morning: "Morning departure from Mara (approx. 4 hours). Stop at Thomson's Falls in Nyahururu for a short walk and refreshments.",
+    afternoon: "Ranger-led walking safari through the rhino sanctuary. Get within 50 metres of white rhino in their natural habitat.",
+    evening: "Lakeside sundowner watching thousands of lesser flamingos turn the water pink at dusk.",
+    highlights: ["Walking safari with conservation rangers", "Black and white rhino in the wild", "Pink flamingo flocks at the lake shore"],
+    tips: "Walking safaris require closed-toe shoes and neutral-coloured clothing. Photography from ground level gives dramatic results here.",
+    meals: "Lunch at Thomson's Falls Lodge · Dinner at Nakuru hotel",
+    stops: [{ name: "Thomson's Falls" }, { name: "Lake Nakuru Rhino Sanctuary" }, { name: "Baboon Cliff Viewpoint" }],
+  },
+  {
+    day: 5, title: "Departure Day", time: "07:00", location: "Nairobi",
+    detail: "Your final morning offers one last chance to breathe in the Kenyan air. Enjoy a leisurely breakfast with sweeping views, then your driver guides you back to Nairobi in time for afternoon or evening flights.",
+    morning: "Farewell breakfast at the lodge. Final walk around the grounds with your naturalist guide to observe resident birdlife.",
+    afternoon: "Scenic return drive to Nairobi passing through the fertile highlands. Optional stop at a Kikuyu craft market.",
+    highlights: ["Final bird walk with your naturalist", "Craft market for last-minute souvenirs", "Certificate of Safari completion presented at departure"],
+    tips: "Allow at least 4 hours from Nakuru to JKIA, plus check-in time. Your driver will ensure you arrive with time to spare.",
+    meals: "Farewell breakfast · Light lunch en route",
+    stops: [{ name: "Nakuru Town Market" }, { name: "Nairobi — Wilson / JKIA Airport" }],
+  },
 ];
 const INTERESTS = [
   "museum", "heritage_site", "national_park", "wildlife", "beach",
@@ -201,9 +251,9 @@ function ItineraryPage() {
                     onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
                     className="mt-1 rounded-lg border border-border bg-background px-2 py-2 text-sm outline-none focus:border-[var(--color-gold)]"
                   >
-                    <option value="USD">USD</option>
-                    <option value="KES">KES</option>
-                    <option value="EUR">EUR</option>
+                    {CURRENCY_OPTIONS.map(cur => (
+                      <option key={cur} value={cur}>{CURRENCIES[cur].flag} {cur}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
@@ -306,28 +356,120 @@ function ItineraryPage() {
 
         {usingSample && user && !itinerariesQuery.isLoading && (<p className="mt-8 text-sm text-muted-foreground">{t("itinerary.emptyGenerated", "You do not have any saved itineraries yet. Use Generate with AI to create one from the backend.")}</p>)}
 
-        <ol className="mt-12 space-y-10">
-          {visibleDays.map((d, i) => (<li key={d.day} className="grid gap-6 md:grid-cols-12">
-              <div className="md:col-span-2">
-                <div className="eyebrow">{t("itinerary.day")}</div>
-                <div className="font-display text-6xl leading-none">{d.day.toString().padStart(2, "0")}</div>
-              </div>
-              <div className="md:col-span-9 border-l border-border pl-6">
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <Calendar className="h-3.5 w-3.5"/> {d.time || t("itinerary.flexibleTime", "Flexible schedule")}
-                  <span>·</span>
-                  <MapPin className="h-3.5 w-3.5"/> {t("itinerary.location")}
+        <ol className="mt-12 space-y-6">
+          {visibleDays.map((d, i) => (
+            <li key={d.day} className="rounded-3xl border border-border bg-card overflow-hidden">
+              {/* Day header */}
+              <div className="flex items-center gap-5 bg-gradient-to-r from-[var(--color-gold)]/10 to-transparent border-b border-border px-6 py-4">
+                <div className="shrink-0 text-center">
+                  <div className="text-[0.6rem] uppercase tracking-widest text-muted-foreground">{t("itinerary.day")}</div>
+                  <div className="font-display text-4xl leading-none">{d.day.toString().padStart(2, "0")}</div>
                 </div>
-                <h3 className="mt-2 font-display text-3xl">{d.title}</h3>
-                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{d.detail}</p>
-                {Array.isArray(d.stops) && d.stops.length > 0 && (<div className="mt-4 flex flex-wrap gap-2">
-                  {d.stops.map((stop, stopIndex) => (<span key={`${stop.name}-${stopIndex}`} className="rounded-full border border-border px-3 py-1 text-[0.62rem] uppercase tracking-widest text-muted-foreground">
-                        {stop.name}
-                      </span>))}
-                  </div>)}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display text-2xl leading-tight">{d.title}</h3>
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    {d.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {d.time}</span>}
+                    {d.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {d.location}</span>}
+                    {d.duration && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {d.duration}</span>}
+                  </div>
+                </div>
               </div>
-              <div className="md:col-span-1 md:text-right"/>
-            </li>))}
+
+              <div className="p-6 space-y-5">
+                {/* Main narrative */}
+                {d.detail && (
+                  <p className="text-sm leading-relaxed text-foreground/85">{d.detail}</p>
+                )}
+
+                {/* Morning / Afternoon / Evening breakdown */}
+                {(d.morning || d.afternoon || d.evening) && (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {d.morning && (
+                      <div className="rounded-2xl border border-border bg-amber-50/50 dark:bg-amber-900/10 p-4">
+                        <div className="flex items-center gap-1.5 text-[0.62rem] uppercase tracking-widest text-amber-700 dark:text-amber-400 mb-2">
+                          <Coffee className="h-3 w-3" /> Morning
+                        </div>
+                        <p className="text-xs leading-relaxed text-foreground/80">{d.morning}</p>
+                      </div>
+                    )}
+                    {d.afternoon && (
+                      <div className="rounded-2xl border border-border bg-sky-50/50 dark:bg-sky-900/10 p-4">
+                        <div className="flex items-center gap-1.5 text-[0.62rem] uppercase tracking-widest text-sky-700 dark:text-sky-400 mb-2">
+                          <Sparkles className="h-3 w-3" /> Afternoon
+                        </div>
+                        <p className="text-xs leading-relaxed text-foreground/80">{d.afternoon}</p>
+                      </div>
+                    )}
+                    {d.evening && (
+                      <div className="rounded-2xl border border-border bg-purple-50/50 dark:bg-purple-900/10 p-4">
+                        <div className="flex items-center gap-1.5 text-[0.62rem] uppercase tracking-widest text-purple-700 dark:text-purple-400 mb-2">
+                          <Sunset className="h-3 w-3" /> Evening
+                        </div>
+                        <p className="text-xs leading-relaxed text-foreground/80">{d.evening}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Highlights / tips */}
+                {d.highlights && d.highlights.length > 0 && (
+                  <div className="rounded-2xl border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/5 p-4">
+                    <div className="flex items-center gap-1.5 text-[0.62rem] uppercase tracking-widest text-[var(--color-gold)] mb-2">
+                      <Star className="h-3 w-3" /> Highlights
+                    </div>
+                    <ul className="space-y-1">
+                      {d.highlights.map((h, hi) => (
+                        <li key={hi} className="flex items-start gap-2 text-xs text-foreground/80">
+                          <span className="mt-0.5 shrink-0 text-[var(--color-gold)]">·</span>{h}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Tips */}
+                {d.tips && (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50/50 dark:bg-blue-900/10 px-4 py-3 flex items-start gap-2">
+                    <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-600" />
+                    <p className="text-xs leading-relaxed text-foreground/80"><span className="font-medium text-blue-700 dark:text-blue-400">Tip: </span>{d.tips}</p>
+                  </div>
+                )}
+
+                {/* Meals */}
+                {d.meals && (
+                  <div className="flex flex-wrap gap-2">
+                    {(typeof d.meals === "string" ? [d.meals] : d.meals).map((m, mi) => (
+                      <span key={mi} className="inline-flex items-center gap-1 rounded-full bg-orange-100 dark:bg-orange-900/30 px-2.5 py-1 text-[0.62rem] uppercase tracking-widest text-orange-700 dark:text-orange-400">
+                        <Coffee className="h-2.5 w-2.5" /> {m}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Stops / attractions */}
+                {Array.isArray(d.stops) && d.stops.length > 0 && (
+                  <div>
+                    <div className="text-[0.6rem] uppercase tracking-widest text-muted-foreground mb-2">Stops & Attractions</div>
+                    <div className="flex flex-wrap gap-2">
+                      {d.stops.map((stop, si) => (
+                        <span key={`${stop.name}-${si}`} className="rounded-full border border-border px-3 py-1 text-[0.62rem] uppercase tracking-widest text-muted-foreground">
+                          {stop.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cost estimate */}
+                {d.estimated_cost && (
+                  <div className="text-right">
+                    <span className="text-[0.62rem] uppercase tracking-widest text-muted-foreground">Est. cost: </span>
+                    <span className="text-sm font-medium">{d.estimated_cost}</span>
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
         </ol>
 
         {usingSample && (<button className="mt-14 inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-xs uppercase tracking-widest opacity-70">
@@ -374,12 +516,23 @@ function ItineraryPage() {
       return days.map((day, index) => ({
         day: day.day_number ?? day.day ?? index + 1,
         title: day.day_title || day.title || `Day ${index + 1}`,
-        detail: day.narrative || day.detail || "",
-        time: day.time || "",
+        detail: day.narrative || day.description || day.detail || "",
+        time: day.start_time || day.time || "",
+        location: day.location || day.area || "",
+        duration: day.duration || "",
+        morning: day.morning || day.morning_activities || "",
+        afternoon: day.afternoon || day.afternoon_activities || "",
+        evening: day.evening || day.evening_activities || "",
+        highlights: Array.isArray(day.highlights) ? day.highlights : day.highlights ? [day.highlights] : [],
+        tips: day.tips || day.travel_tip || day.local_tip || "",
+        meals: day.meals || day.meal_plan || "",
+        estimated_cost: day.estimated_cost || day.cost_estimate || "",
         stops: Array.isArray(day.attractions)
           ? day.attractions.map((item) => ({
             name: item.name || item.attraction_name || item.title || "Attraction",
           }))
+          : Array.isArray(day.stops)
+          ? day.stops.map((s) => ({ name: typeof s === "string" ? s : s.name || "Stop" }))
           : [],
       }));
     }

@@ -3,6 +3,7 @@ import { attractionsApi } from "@/lib/api";
 import { getAttractionReviews } from "./dashboardApi";
 import { Plus, Pencil, Trash2, Star, Eye, ChevronDown, ChevronUp, X, PlusCircle, MinusCircle } from "lucide-react";
 import { toast } from "sonner";
+import { KENYA_COUNTIES, KENYA_SUB_COUNTIES, KENYA_TOURISM_TYPES } from "@/lib/kenya-locations";
 
 const CATEGORIES = [
   "museum", "heritage_site", "national_park", "wildlife", "beach",
@@ -10,7 +11,6 @@ const CATEGORIES = [
   "gastronomy", "health_wellness", "ecotourism", "birdwatching",
 ];
 
-// Business owners can only submit as draft or pending — admin sets approved/rejected
 const OWNER_STATUS_OPTIONS = ["draft", "pending"];
 const ALL_STATUS_OPTIONS = ["draft", "pending", "approved", "rejected"];
 
@@ -18,11 +18,39 @@ const EMPTY_FORM = {
   name: "",
   description: "",
   category: "wildlife",
+  tourism_type: "",
   entry_fee: "",
-  media_urls: [""],  // first entry = cover image; others = supporting media
+  media_urls: [""],
   status: "draft",
   destination_id: "",
   is_wheelchair_accessible: false,
+  // Location
+  county: "",
+  sub_county: "",
+  ward: "",
+  locality: "",
+  gps_coordinates: "",
+  // Experience highlights
+  unique_features: "",
+  environmental_impact: "",
+  visitor_capacity: "",
+  types_of_experiences: "",
+  avg_time_spent: "",
+  best_visiting_periods: "",
+  key_events: "",
+  // Situational analysis
+  roads_condition: "",
+  visitor_center_info: "",
+  water_supply: "",
+  signage_info: "",
+  fencing_security: "",
+  parking_area: "",
+  rest_areas: "",
+  site_current_status: "",
+  // Associated services
+  tour_operators: "",
+  nearby_accommodation: "",
+  distance_to_major_town: "",
 };
 
 export default function AttractionsPanel({ attractions, businessProfileId, destinations, onUpdate }) {
@@ -45,7 +73,6 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
 
   const openEdit = (attraction) => {
     setEditingId(attraction.id);
-    // Reconstruct media_urls: use existing array or fall back to image_url as first entry
     const existing = Array.isArray(attraction.media_urls) && attraction.media_urls.length > 0
       ? attraction.media_urls
       : attraction.image_url ? [attraction.image_url] : [""];
@@ -53,11 +80,35 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
       name: attraction.name || "",
       description: attraction.description || "",
       category: attraction.category || "wildlife",
+      tourism_type: attraction.tourism_type || "",
       entry_fee: attraction.entry_fee ?? "",
       media_urls: existing,
       status: attraction.status || "draft",
       destination_id: attraction.destination_id || "",
       is_wheelchair_accessible: attraction.is_wheelchair_accessible || false,
+      county: attraction.county || "",
+      sub_county: attraction.sub_county || "",
+      ward: attraction.ward || "",
+      locality: attraction.locality || "",
+      gps_coordinates: attraction.gps_coordinates || "",
+      unique_features: attraction.unique_features || "",
+      environmental_impact: attraction.environmental_impact || "",
+      visitor_capacity: attraction.visitor_capacity ?? "",
+      types_of_experiences: attraction.types_of_experiences || "",
+      avg_time_spent: attraction.avg_time_spent || "",
+      best_visiting_periods: attraction.best_visiting_periods || "",
+      key_events: attraction.key_events || "",
+      roads_condition: attraction.roads_condition || "",
+      visitor_center_info: attraction.visitor_center_info || "",
+      water_supply: attraction.water_supply || "",
+      signage_info: attraction.signage_info || "",
+      fencing_security: attraction.fencing_security || "",
+      parking_area: attraction.parking_area || "",
+      rest_areas: attraction.rest_areas || "",
+      site_current_status: attraction.site_current_status || "",
+      tour_operators: attraction.tour_operators || "",
+      nearby_accommodation: attraction.nearby_accommodation || "",
+      distance_to_major_town: attraction.distance_to_major_town || "",
     });
     setShowForm(true);
   };
@@ -69,6 +120,33 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
     try {
       const cleanUrls = (form.media_urls || []).map((u) => u.trim()).filter(Boolean);
       const coverUrl = cleanUrls[0] || null;
+      const locationPayload = {
+        county: form.county || null,
+        sub_county: form.sub_county || null,
+        ward: form.ward || null,
+        locality: form.locality || null,
+        gps_coordinates: form.gps_coordinates || null,
+        tourism_type: form.tourism_type || null,
+        unique_features: form.unique_features || null,
+        environmental_impact: form.environmental_impact || null,
+        visitor_capacity: form.visitor_capacity !== "" ? Number(form.visitor_capacity) : null,
+        types_of_experiences: form.types_of_experiences || null,
+        avg_time_spent: form.avg_time_spent || null,
+        best_visiting_periods: form.best_visiting_periods || null,
+        key_events: form.key_events || null,
+        roads_condition: form.roads_condition || null,
+        visitor_center_info: form.visitor_center_info || null,
+        water_supply: form.water_supply || null,
+        signage_info: form.signage_info || null,
+        fencing_security: form.fencing_security || null,
+        parking_area: form.parking_area || null,
+        rest_areas: form.rest_areas || null,
+        site_current_status: form.site_current_status || null,
+        tour_operators: form.tour_operators || null,
+        nearby_accommodation: form.nearby_accommodation || null,
+        distance_to_major_town: form.distance_to_major_town || null,
+      };
+
       if (editingId) {
         await attractionsApi.update(editingId, {
           name: form.name,
@@ -79,6 +157,7 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
           media_urls: cleanUrls,
           status: form.status,
           is_wheelchair_accessible: form.is_wheelchair_accessible,
+          ...locationPayload,
         });
         toast.success("Attraction updated");
       } else {
@@ -95,6 +174,7 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
           is_wheelchair_accessible: form.is_wheelchair_accessible,
           destination_id: destId,
           business_owner_id: businessProfileId,
+          ...locationPayload,
         });
         toast.success("Attraction created");
       }
@@ -264,6 +344,120 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
               />
               Wheelchair accessible
             </label>
+
+            {/* Location Section */}
+            <SectionDivider title="Location (Kenya)" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="County">
+                <select value={form.county}
+                  onChange={(e) => handleFieldChange("county", e.target.value) || handleFieldChange("sub_county", "")}
+                  className="input-base">
+                  <option value="">— Select County —</option>
+                  {KENYA_COUNTIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </FormField>
+              <FormField label="Sub-County">
+                {form.county && (KENYA_SUB_COUNTIES[form.county] || []).length > 0 ? (
+                  <select value={form.sub_county} onChange={(e) => handleFieldChange("sub_county", e.target.value)} className="input-base">
+                    <option value="">— Select Sub-County —</option>
+                    {(KENYA_SUB_COUNTIES[form.county] || []).map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : (
+                  <input value={form.sub_county} onChange={(e) => handleFieldChange("sub_county", e.target.value)} className="input-base" placeholder="Sub-county" />
+                )}
+              </FormField>
+              <FormField label="Ward">
+                <input value={form.ward} onChange={(e) => handleFieldChange("ward", e.target.value)} className="input-base" placeholder="Ward name" />
+              </FormField>
+              <FormField label="Sub-Location / Locality">
+                <input value={form.locality} onChange={(e) => handleFieldChange("locality", e.target.value)} className="input-base" placeholder="Locality name" />
+              </FormField>
+              <FormField label="GPS Coordinates (Lat/Long)">
+                <input value={form.gps_coordinates} onChange={(e) => handleFieldChange("gps_coordinates", e.target.value)} className="input-base" placeholder="e.g. -1.2921, 36.8219" />
+              </FormField>
+              <FormField label="Tourism Type">
+                <select value={form.tourism_type} onChange={(e) => handleFieldChange("tourism_type", e.target.value)} className="input-base">
+                  <option value="">— Select Type —</option>
+                  {KENYA_TOURISM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </FormField>
+            </div>
+
+            {/* Experience Highlights Section */}
+            <SectionDivider title="Experience Highlights" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Unique Features">
+                <textarea value={form.unique_features} onChange={(e) => handleFieldChange("unique_features", e.target.value)} rows={2} className="input-base resize-none" placeholder="What makes this attraction unique…" />
+              </FormField>
+              <FormField label="Environmental Impact & Conservation">
+                <textarea value={form.environmental_impact} onChange={(e) => handleFieldChange("environmental_impact", e.target.value)} rows={2} className="input-base resize-none" placeholder="Conservation efforts, environmental impact…" />
+              </FormField>
+              <FormField label="Max Visitor Capacity">
+                <input type="number" min="0" value={form.visitor_capacity} onChange={(e) => handleFieldChange("visitor_capacity", e.target.value)} className="input-base" placeholder="Max sustainable visitors" />
+              </FormField>
+              <FormField label="Types of Experiences">
+                <input value={form.types_of_experiences} onChange={(e) => handleFieldChange("types_of_experiences", e.target.value)} className="input-base" placeholder="e.g. guided tours, self-exploration, special events" />
+              </FormField>
+              <FormField label="Average Time at Site">
+                <input value={form.avg_time_spent} onChange={(e) => handleFieldChange("avg_time_spent", e.target.value)} className="input-base" placeholder="e.g. 2-3 hours" />
+              </FormField>
+              <FormField label="Best Visiting Periods">
+                <input value={form.best_visiting_periods} onChange={(e) => handleFieldChange("best_visiting_periods", e.target.value)} className="input-base" placeholder="e.g. July–October, year-round" />
+              </FormField>
+              <FormField label="Key Events / Festivals">
+                <input value={form.key_events} onChange={(e) => handleFieldChange("key_events", e.target.value)} className="input-base" placeholder="Key events or seasonal activities" />
+              </FormField>
+            </div>
+
+            {/* Situational Analysis Section */}
+            <SectionDivider title="Situational Analysis" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Roads (Access & Condition)">
+                <input value={form.roads_condition} onChange={(e) => handleFieldChange("roads_condition", e.target.value)} className="input-base" placeholder="e.g. Tarmac road, good condition" />
+              </FormField>
+              <FormField label="Visitor Centre / Info Kiosks">
+                <input value={form.visitor_center_info} onChange={(e) => handleFieldChange("visitor_center_info", e.target.value)} className="input-base" placeholder="Visitor centre availability…" />
+              </FormField>
+              <FormField label="Water Supply">
+                <input value={form.water_supply} onChange={(e) => handleFieldChange("water_supply", e.target.value)} className="input-base" placeholder="e.g. Borehole, piped water available" />
+              </FormField>
+              <FormField label="Signage & Interpretation">
+                <input value={form.signage_info} onChange={(e) => handleFieldChange("signage_info", e.target.value)} className="input-base" placeholder="Signage quality and language…" />
+              </FormField>
+              <FormField label="Fencing & Security">
+                <input value={form.fencing_security} onChange={(e) => handleFieldChange("fencing_security", e.target.value)} className="input-base" placeholder="Security measures…" />
+              </FormField>
+              <FormField label="Parking Area">
+                <input value={form.parking_area} onChange={(e) => handleFieldChange("parking_area", e.target.value)} className="input-base" placeholder="Parking availability…" />
+              </FormField>
+              <FormField label="Rest Areas / Toilets">
+                <input value={form.rest_areas} onChange={(e) => handleFieldChange("rest_areas", e.target.value)} className="input-base" placeholder="Toilet facilities availability…" />
+              </FormField>
+              <FormField label="Site Current Status">
+                <select value={form.site_current_status} onChange={(e) => handleFieldChange("site_current_status", e.target.value)} className="input-base">
+                  <option value="">— Select Status —</option>
+                  <option value="Active">Active</option>
+                  <option value="Under Development">Under Development</option>
+                  <option value="Temporarily Closed">Temporarily Closed</option>
+                  <option value="Seasonal">Seasonal</option>
+                </select>
+              </FormField>
+            </div>
+
+            {/* Associated Services Section */}
+            <SectionDivider title="Associated Services" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Tour Operators Serving the Site">
+                <input value={form.tour_operators} onChange={(e) => handleFieldChange("tour_operators", e.target.value)} className="input-base" placeholder="Tour operator names…" />
+              </FormField>
+              <FormField label="Nearby Accommodation Facilities">
+                <input value={form.nearby_accommodation} onChange={(e) => handleFieldChange("nearby_accommodation", e.target.value)} className="input-base" placeholder="Nearby hotels, lodges…" />
+              </FormField>
+              <FormField label="Distance to Major Town / Tourism Hub">
+                <input value={form.distance_to_major_town} onChange={(e) => handleFieldChange("distance_to_major_town", e.target.value)} className="input-base" placeholder="e.g. 15km from Nairobi CBD" />
+              </FormField>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"
@@ -397,6 +591,15 @@ function FormField({ label, children }) {
       <span className="mb-1 block text-xs uppercase tracking-widest text-muted-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+function SectionDivider({ title }) {
+  return (
+    <div className="flex items-center gap-3 pt-2">
+      <span className="text-xs font-semibold uppercase tracking-widest text-foreground">{title}</span>
+      <div className="flex-1 border-t border-border" />
+    </div>
   );
 }
 
