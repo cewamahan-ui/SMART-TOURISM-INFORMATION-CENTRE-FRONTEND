@@ -4,7 +4,7 @@ export const pt = {
     tagline: "O Safari Moderno", begin: "Começar", signOut: "Sair",
     notifications: "Notificações", mapDirections: "Mapa e Direcções", favorites: "Favoritos",
     profile: "Perfil", settings: "Configurações", sos: "SOS", sosEmergency: "Emergência SOS",
-    nav: { explore: "Explorar", itinerary: "Itinerário", accommodations: "Alojamento", transport: "Transporte",
+    nav: { explore: "Explorar", attractions: "Atrações", cultureHub: "Centro Cultural", itinerary: "Itinerário", accommodations: "Alojamento", transport: "Transporte",
       bookings: "Reservas", businessDashboard: "Painel de Negócios", adminDashboard: "Painel Admin",
       notifications: "Notificações", favorites: "Favoritos", fieldGuide: "Guia de Campo",
       events: "Eventos", tourPackages: "Pacotes Turísticos" },

@@ -7,8 +7,8 @@ import { useI18n } from "@/language/i18n-provider";
 // Non-admin nav items (shown to everyone)
 const navBase = [
   { to: "/explore", key: "explore" },
-  { to: "/attractions", label: "Attractions" },
-  { to: "/culture-hub", label: "Culture Hub" },
+  { to: "/attractions", key: "attractions" },
+  { to: "/culture-hub", key: "cultureHub" },
   { to: "/itinerary", key: "itinerary" },
   { to: "/events", key: "events" },
   { to: "/tour-packages", key: "tourPackages" },
@@ -105,7 +105,7 @@ export function SiteHeader({ transparent = false }) {
             onClick={closeSidebar}
             className="rounded-xl px-3 py-2 text-sm tracking-wide whitespace-normal break-words hover:bg-white/10"
           >
-            {t(`header.nav.${n.key}`)}
+            {n.key ? t(`header.nav.${n.key}`, n.label || n.key) : n.label}
           </Link>
         ))}
 

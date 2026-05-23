@@ -4,7 +4,7 @@ export const ar = {
     tagline: "السفاري الحديث", begin: "ابدأ", signOut: "تسجيل الخروج",
     notifications: "الإشعارات", mapDirections: "الخريطة والاتجاهات", favorites: "المفضلة",
     profile: "الملف الشخصي", settings: "الإعدادات", sos: "نداء الاستغاثة", sosEmergency: "طوارئ SOS",
-    nav: { explore: "استكشاف", itinerary: "البرنامج السياحي", accommodations: "الإقامة", transport: "النقل",
+    nav: { explore: "استكشاف", attractions: "المعالم السياحية", cultureHub: "مركز الثقافة", itinerary: "البرنامج السياحي", accommodations: "الإقامة", transport: "النقل",
       bookings: "الحجوزات", businessDashboard: "لوحة الأعمال", adminDashboard: "لوحة الإدارة",
       notifications: "الإشعارات", favorites: "المفضلة", fieldGuide: "دليل الميدان",
       events: "الفعاليات", tourPackages: "باقات السياحة" },

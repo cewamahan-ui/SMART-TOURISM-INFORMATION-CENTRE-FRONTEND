@@ -4,7 +4,7 @@ export const zh = {
     tagline: "现代Safari", begin: "开始", signOut: "退出登录",
     notifications: "通知", mapDirections: "地图与导航", favorites: "收藏",
     profile: "个人资料", settings: "设置", sos: "紧急求助", sosEmergency: "紧急援助",
-    nav: { explore: "探索", itinerary: "行程", accommodations: "住宿", transport: "交通",
+    nav: { explore: "探索", attractions: "景点", cultureHub: "文化中心", itinerary: "行程", accommodations: "住宿", transport: "交通",
       bookings: "预订", businessDashboard: "商业中心", adminDashboard: "管理中心",
       notifications: "通知", favorites: "收藏", fieldGuide: "野外指南",
       events: "活动", tourPackages: "旅游套餐" },
