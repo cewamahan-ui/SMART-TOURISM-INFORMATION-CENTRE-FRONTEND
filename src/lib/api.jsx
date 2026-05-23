@@ -167,9 +167,6 @@ export const bookingsApi = {
     generateQr: (id) => api(`/api/v1/bookings/${id}/qr`, { method: "POST" }),
     adminList: () => api("/api/v1/admin/bookings", { method: "GET" }),
     createTour: (payload) => api("/api/v1/bookings/tour", { method: "POST", json: payload }),
-    payMpesa: (bookingId, payload) => api(`/api/v1/payments/pay/mpesa`, { method: "POST", json: { ...payload, booking_id: bookingId } }),
-    payStripe: (bookingId, payload) => api(`/api/v1/payments/stripe/create-payment-intent`, { method: "POST", json: { ...payload, metadata: { booking_id: bookingId } } }),
-    pollMpesaStatus: (reference) => api(`/api/v1/payments/status/${reference}`, { method: "GET" }),
 };
 
 // ── QR Codes ────────────────────────────────────────────────────

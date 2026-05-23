@@ -127,7 +127,6 @@ function toGallery(item, index) {
         item.image,
         item.image_url,
         item.cover_image,
-        ...(Array.isArray(item.media_urls) ? item.media_urls : []),
         ...(Array.isArray(item.images) ? item.images : []),
         ...(Array.isArray(item.gallery) ? item.gallery : []),
     ].filter(Boolean);

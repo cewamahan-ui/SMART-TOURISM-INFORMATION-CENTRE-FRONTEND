@@ -351,29 +351,26 @@ function BookingModal({ accommodation, onClose }) {
         ) : bookingResult?.ok ? (
           <div className="py-6 text-center">
             <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-500" />
-            <p className="font-display text-xl">Booking Created!</p>
+            <p className="font-display text-xl">Booking Confirmed!</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Reference: <span className="font-mono">{bookingResult.data?.reference_number ?? "—"}</span>
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Total: <strong>KES {(total * 130).toLocaleString()}</strong> for {nights} night{nights !== 1 ? "s" : ""}
+              Total: <strong>${total}</strong> for {nights} night{nights !== 1 ? "s" : ""}
             </p>
-            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-700/30 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
-              Your booking is <strong>pending</strong> — complete payment to confirm it.
-            </div>
             <div className="mt-6 flex justify-center gap-3">
               <Link
                 to="/bookings"
-                className="rounded-full bg-[var(--color-gold)] px-5 py-2 text-xs uppercase tracking-widest text-[var(--color-ink)]"
+                className="rounded-full bg-[var(--color-ink)] px-5 py-2 text-xs uppercase tracking-widest text-[var(--color-cream)]"
                 onClick={onClose}
               >
-                Pay Now
+                View Bookings
               </Link>
               <button
                 onClick={onClose}
                 className="rounded-full border border-border px-5 py-2 text-xs uppercase tracking-widest"
               >
-                Pay Later
+                Close
               </button>
             </div>
           </div>

@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { attractionsApi } from "@/lib/api";
 import { getAttractionReviews } from "./dashboardApi";
-import { Plus, Pencil, Trash2, Star, Eye, ChevronDown, ChevronUp, X, PlusCircle, MinusCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Star, Eye, ChevronDown, ChevronUp, X } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORIES = [
@@ -19,7 +19,7 @@ const EMPTY_FORM = {
   description: "",
   category: "wildlife",
   entry_fee: "",
-  media_urls: [""],  // first entry = cover image; others = supporting media
+  image_url: "",
   status: "draft",
   destination_id: "",
   is_wheelchair_accessible: false,
@@ -45,16 +45,12 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
 
   const openEdit = (attraction) => {
     setEditingId(attraction.id);
-    // Reconstruct media_urls: use existing array or fall back to image_url as first entry
-    const existing = Array.isArray(attraction.media_urls) && attraction.media_urls.length > 0
-      ? attraction.media_urls
-      : attraction.image_url ? [attraction.image_url] : [""];
     setForm({
       name: attraction.name || "",
       description: attraction.description || "",
       category: attraction.category || "wildlife",
       entry_fee: attraction.entry_fee ?? "",
-      media_urls: existing,
+      image_url: attraction.image_url || "",
       status: attraction.status || "draft",
       destination_id: attraction.destination_id || "",
       is_wheelchair_accessible: attraction.is_wheelchair_accessible || false,
@@ -67,16 +63,13 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
     if (!form.name.trim()) { toast.error("Attraction name is required"); return; }
     setSaving(true);
     try {
-      const cleanUrls = (form.media_urls || []).map((u) => u.trim()).filter(Boolean);
-      const coverUrl = cleanUrls[0] || null;
       if (editingId) {
         await attractionsApi.update(editingId, {
           name: form.name,
           description: form.description,
           category: form.category,
           entry_fee: form.entry_fee !== "" ? Number(form.entry_fee) : null,
-          image_url: coverUrl,
-          media_urls: cleanUrls,
+          image_url: form.image_url || null,
           status: form.status,
           is_wheelchair_accessible: form.is_wheelchair_accessible,
         });
@@ -89,8 +82,7 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
           description: form.description,
           category: form.category,
           entry_fee: form.entry_fee !== "" ? Number(form.entry_fee) : null,
-          image_url: coverUrl,
-          media_urls: cleanUrls,
+          image_url: form.image_url || null,
           status: form.status,
           is_wheelchair_accessible: form.is_wheelchair_accessible,
           destination_id: destId,
@@ -210,40 +202,13 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
                   </p>
                 )}
               </FormField>
-              <FormField label="Media URLs (first = cover image)">
-                <div className="space-y-2">
-                  {(form.media_urls.length === 0 ? [""] : form.media_urls).map((url, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <input
-                        value={url}
-                        onChange={(e) => {
-                          const next = [...form.media_urls];
-                          next[idx] = e.target.value;
-                          handleFieldChange("media_urls", next);
-                        }}
-                        className="input-base flex-1"
-                        placeholder={idx === 0 ? "https://… (cover image or video)" : "https://… (supporting image or video)"}
-                      />
-                      {form.media_urls.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleFieldChange("media_urls", form.media_urls.filter((_, i) => i !== idx))}
-                          className="text-red-400 hover:text-red-600"
-                        >
-                          <MinusCircle className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => handleFieldChange("media_urls", [...form.media_urls, ""])}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <PlusCircle className="h-3.5 w-3.5" /> Add another URL
-                  </button>
-                </div>
-                <p className="mt-1 text-[0.65rem] text-muted-foreground">Supports image and video URLs. First URL is shown as the cover.</p>
+              <FormField label="Image URL">
+                <input
+                  value={form.image_url}
+                  onChange={(e) => handleFieldChange("image_url", e.target.value)}
+                  className="input-base"
+                  placeholder="https://..."
+                />
               </FormField>
             </div>
             <FormField label="Description">
@@ -293,12 +258,8 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
           {attractions.map((a) => (
             <div key={a.id} className="rounded-2xl border border-border bg-card overflow-hidden">
               <div className="flex items-center gap-4 p-4">
-                {(a.image_url || (Array.isArray(a.media_urls) && a.media_urls[0])) && (
-                  <img
-                    src={a.image_url || a.media_urls[0]}
-                    alt={a.name}
-                    className="h-14 w-14 rounded-xl object-cover shrink-0"
-                  />
+                {a.image_url && (
+                  <img src={a.image_url} alt={a.name} className="h-14 w-14 rounded-xl object-cover shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
