@@ -105,7 +105,7 @@ export function SiteHeader({ transparent = false }) {
             onClick={closeSidebar}
             className="rounded-xl px-3 py-2 text-sm tracking-wide whitespace-normal break-words hover:bg-white/10"
           >
-            {n.label ?? t(`header.nav.${n.key}`)}
+            {t(`header.nav.${n.key}`)}
           </Link>
         ))}
 

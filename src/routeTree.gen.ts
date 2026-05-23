@@ -30,7 +30,6 @@ import { Route as EventsRouteImport } from './routes/events'
 import { Route as CultureHubRouteImport } from './routes/culture-hub'
 import { Route as BusinessDashboardRouteImport } from './routes/business-dashboard'
 import { Route as BookingsRouteImport } from './routes/bookings'
-import { Route as AttractionsRouteImport } from './routes/attractions'
 import { Route as AdminDashboardRouteImport } from './routes/admin-dashboard'
 import { Route as AccommodationsRouteImport } from './routes/accommodations'
 import { Route as IndexRouteImport } from './routes/index'
@@ -141,11 +140,6 @@ const BookingsRoute = BookingsRouteImport.update({
   path: '/bookings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AttractionsRoute = AttractionsRouteImport.update({
-  id: '/attractions',
-  path: '/attractions',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/admin-dashboard',
   path: '/admin-dashboard',
@@ -171,7 +165,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accommodations': typeof AccommodationsRoute
   '/admin-dashboard': typeof AdminDashboardRoute
-  '/attractions': typeof AttractionsRoute
   '/bookings': typeof BookingsRoute
   '/business-dashboard': typeof BusinessDashboardRoute
   '/culture-hub': typeof CultureHubRoute
@@ -199,7 +192,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accommodations': typeof AccommodationsRoute
   '/admin-dashboard': typeof AdminDashboardRoute
-  '/attractions': typeof AttractionsRoute
   '/bookings': typeof BookingsRoute
   '/business-dashboard': typeof BusinessDashboardRoute
   '/culture-hub': typeof CultureHubRoute
@@ -228,7 +220,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/accommodations': typeof AccommodationsRoute
   '/admin-dashboard': typeof AdminDashboardRoute
-  '/attractions': typeof AttractionsRoute
   '/bookings': typeof BookingsRoute
   '/business-dashboard': typeof BusinessDashboardRoute
   '/culture-hub': typeof CultureHubRoute
@@ -258,7 +249,6 @@ export interface FileRouteTypes {
     | '/'
     | '/accommodations'
     | '/admin-dashboard'
-    | '/attractions'
     | '/bookings'
     | '/business-dashboard'
     | '/culture-hub'
@@ -286,7 +276,6 @@ export interface FileRouteTypes {
     | '/'
     | '/accommodations'
     | '/admin-dashboard'
-    | '/attractions'
     | '/bookings'
     | '/business-dashboard'
     | '/culture-hub'
@@ -314,7 +303,6 @@ export interface FileRouteTypes {
     | '/'
     | '/accommodations'
     | '/admin-dashboard'
-    | '/attractions'
     | '/bookings'
     | '/business-dashboard'
     | '/culture-hub'
@@ -343,7 +331,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccommodationsRoute: typeof AccommodationsRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
-  AttractionsRoute: typeof AttractionsRoute
   BookingsRoute: typeof BookingsRoute
   BusinessDashboardRoute: typeof BusinessDashboardRoute
   CultureHubRoute: typeof CultureHubRoute
@@ -516,13 +503,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/attractions': {
-      id: '/attractions'
-      path: '/attractions'
-      fullPath: '/attractions'
-      preLoaderRoute: typeof AttractionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin-dashboard': {
       id: '/admin-dashboard'
       path: '/admin-dashboard'
@@ -569,7 +549,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccommodationsRoute: AccommodationsRoute,
   AdminDashboardRoute: AdminDashboardRoute,
-  AttractionsRoute: AttractionsRoute,
   BookingsRoute: BookingsRoute,
   BusinessDashboardRoute: BusinessDashboardRoute,
   CultureHubRoute: CultureHubRoute,
