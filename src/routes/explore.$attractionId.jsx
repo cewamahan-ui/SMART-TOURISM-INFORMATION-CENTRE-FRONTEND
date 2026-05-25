@@ -1,15 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, MapPin, DollarSign, Sparkles, Map, Users,
   Leaf, Clock, Calendar, Route as RouteIcon, Building2, Droplets, SignpostBig,
-  CheckCircle, AlertCircle,
+  CheckCircle, AlertCircle, Heart, Star, MessageSquare,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { OSMMapPanel } from "@/components/OSMMapPanel";
-import { attractionsApi } from "@/lib/api";
+import { attractionsApi, favoritesApi, feedbackApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { FALLBACK_IMAGES, normalizeExploreItems } from "@/lib/explore-catalog";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/explore/$attractionId")({
   head: () => ({ meta: [{ title: "Attraction Details — SafariSmart" }] }),
@@ -18,6 +20,9 @@ export const Route = createFileRoute("/explore/$attractionId")({
 
 function AttractionDetailPage() {
   const { attractionId } = Route.useParams();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
   const singleAttractionQuery = useQuery({
     queryKey: ["attraction", attractionId],
     queryFn: () => attractionsApi.get(attractionId),
@@ -25,6 +30,43 @@ function AttractionDetailPage() {
     retry: false,
   });
   const aq = useQuery({ queryKey: ["attractions"], queryFn: attractionsApi.list, retry: false });
+
+  const favListQuery = useQuery({
+    queryKey: ["favorites"],
+    queryFn: favoritesApi.list,
+    enabled: !!user,
+    retry: false,
+  });
+
+  const reviewsQuery = useQuery({
+    queryKey: ["reviews", attractionId],
+    queryFn: () => feedbackApi.reviews.list({ target_id: attractionId, target_type: "attraction" }),
+    enabled: Boolean(attractionId),
+    retry: false,
+  });
+
+  const favList = arrayifyFavs(favListQuery.data);
+  const isFavorited = favList.some(
+    (f) => f.id === attractionId || f.attraction_id === attractionId
+  );
+
+  const addFavMutation = useMutation({
+    mutationFn: () => favoritesApi.add(attractionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["favorites"] });
+      toast.success("Added to favorites");
+    },
+    onError: (err) => toast.error(err?.message || "Could not add to favorites"),
+  });
+
+  const removeFavMutation = useMutation({
+    mutationFn: () => favoritesApi.remove(attractionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["favorites"] });
+      toast.success("Removed from favorites");
+    },
+    onError: (err) => toast.error(err?.message || "Could not remove from favorites"),
+  });
 
   const directAttractionRaw = unwrapEntity(singleAttractionQuery.data);
   const directAttraction = directAttractionRaw
@@ -144,7 +186,24 @@ function AttractionDetailPage() {
 
           {/* Basic info */}
           <div className="lg:col-span-5">
-            <div className="eyebrow">{attraction.tourism_type || attraction.kind || "Attraction"}</div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="eyebrow">{attraction.tourism_type || attraction.kind || "Attraction"}</div>
+              {user && (
+                <button
+                  onClick={() => isFavorited ? removeFavMutation.mutate() : addFavMutation.mutate()}
+                  disabled={addFavMutation.isPending || removeFavMutation.isPending}
+                  title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+                  className="shrink-0 grid h-9 w-9 place-items-center rounded-full border border-border bg-card transition hover:border-red-400 disabled:opacity-50"
+                >
+                  <Heart
+                    className="h-4 w-4"
+                    fill={isFavorited ? "currentColor" : "none"}
+                    stroke="currentColor"
+                    style={{ color: isFavorited ? "#ef4444" : undefined }}
+                  />
+                </button>
+              )}
+            </div>
             <h1 className="mt-2 font-display text-5xl leading-tight">{name}</h1>
 
             {/* Location breadcrumb */}
@@ -267,6 +326,51 @@ function AttractionDetailPage() {
             </div>
           </div>
         </section>
+        {/* Reviews Section */}
+        <section className="mt-12">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <MessageSquare className="h-5 w-5" />
+              <h2 className="font-display text-3xl">Visitor Reviews</h2>
+              {reviewsQuery.data && (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+                  {arrayifyReviews(reviewsQuery.data).length}
+                </span>
+              )}
+            </div>
+            <Link
+              to="/feedback"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs uppercase tracking-widest text-foreground transition hover:bg-muted"
+            >
+              <Star className="h-3.5 w-3.5" /> Write a Review
+            </Link>
+          </div>
+
+          {reviewsQuery.isLoading && (
+            <p className="text-sm text-muted-foreground">Loading reviews…</p>
+          )}
+
+          {!reviewsQuery.isLoading && arrayifyReviews(reviewsQuery.data).length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+              <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground" />
+              <p className="mt-3 text-sm text-muted-foreground">No reviews yet — be the first to share your experience.</p>
+              <Link
+                to="/feedback"
+                className="mt-4 inline-flex rounded-full bg-[var(--color-gold)] px-5 py-2 text-xs uppercase tracking-widest text-[var(--color-ink)] transition hover:brightness-95"
+              >
+                Write a Review
+              </Link>
+            </div>
+          )}
+
+          {arrayifyReviews(reviewsQuery.data).length > 0 && (
+            <div className="grid gap-5 md:grid-cols-2">
+              {arrayifyReviews(reviewsQuery.data).map((review, idx) => (
+                <ReviewCard key={review.id ?? idx} review={review} />
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
       <SiteFooter />
@@ -279,6 +383,52 @@ function AttractionDetailPage() {
       </Link>
     </div>
   );
+}
+
+function ReviewCard({ review }) {
+  const stars = Math.min(5, Math.max(0, Math.round(Number(review.rating) || 0)));
+  const date = review.created_at ? new Date(review.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : null;
+  const author = review.user?.full_name || review.user?.username || review.author_name || "Anonymous";
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star
+                key={i}
+                className="h-3.5 w-3.5"
+                fill={i < stars ? "var(--color-gold)" : "none"}
+                stroke={i < stars ? "var(--color-gold)" : "currentColor"}
+              />
+            ))}
+          </div>
+          {review.title && <h4 className="mt-1.5 font-semibold text-sm">{review.title}</h4>}
+        </div>
+        {date && <span className="shrink-0 text-xs text-muted-foreground">{date}</span>}
+      </div>
+      {review.body && <p className="mt-3 text-sm leading-relaxed text-foreground/80 line-clamp-4">{review.body}</p>}
+      <p className="mt-3 text-xs text-muted-foreground">{author}</p>
+    </div>
+  );
+}
+
+function arrayifyFavs(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (Array.isArray(v.data)) return v.data;
+  if (Array.isArray(v.favourites)) return v.favourites;
+  if (Array.isArray(v.items)) return v.items;
+  return [];
+}
+
+function arrayifyReviews(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (Array.isArray(v.data)) return v.data;
+  if (Array.isArray(v.reviews)) return v.reviews;
+  if (Array.isArray(v.items)) return v.items;
+  return [];
 }
 
 function ExperienceItem({ icon, label, value }) {

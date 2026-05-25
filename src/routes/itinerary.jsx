@@ -3,10 +3,10 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/language/i18n-provider";
-import { itinerariesApi } from "@/lib/api";
+import { itinerariesApi, attractionsApi } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Calendar, MapPin, Sparkles, Plus, X, ChevronDown, QrCode, Clock, Coffee, Sunset, Star, Info } from "lucide-react";
+import { Calendar, MapPin, Sparkles, Plus, X, ChevronDown, QrCode, Clock, Coffee, Sunset, Star, Info, PenLine, Trash2, Search, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import QRCode from "react-qr-code";
 import { CURRENCIES, CURRENCY_OPTIONS, CURRENCY_RATES } from "@/lib/currencies";
@@ -91,6 +91,11 @@ function ItineraryPage() {
     accessibility_required: false,
   });
   const [formError, setFormError] = useState("");
+  const [showCustomCreate, setShowCustomCreate] = useState(false);
+  const [customTitle, setCustomTitle] = useState("");
+  const [addDayForm, setAddDayForm] = useState(null);
+  const [attractionPicker, setAttractionPicker] = useState(null);
+  const [attractionSearch, setAttractionSearch] = useState("");
 
     const KES_PER_USD = 130;
     const KES_PER_EUR = 141;
@@ -180,6 +185,73 @@ function ItineraryPage() {
       toast.error(error?.message || t("itinerary.generatedError", "Unable to generate itinerary right now."));
     },
   });
+  const createMutation = useMutation({
+    mutationFn: (payload) => itinerariesApi.create(payload),
+    onSuccess: (result) => {
+      const created = unwrapEntity(result);
+      if (created?.id) setSelectedId(created.id);
+      queryClient.invalidateQueries({ queryKey: ["itineraries"] });
+      setShowCustomCreate(false);
+      setCustomTitle("");
+      toast.success("Custom itinerary created.");
+    },
+    onError: (e) => toast.error(e?.message || "Could not create itinerary."),
+  });
+
+  const addDayMutation = useMutation({
+    mutationFn: (payload) => itinerariesApi.days.add(activeItineraryId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["itinerary", activeItineraryId] });
+      setAddDayForm(null);
+      toast.success("Day added.");
+    },
+    onError: (e) => toast.error(e?.message || "Could not add day."),
+  });
+
+  const removeDayMutation = useMutation({
+    mutationFn: (dayId) => itinerariesApi.days.remove(activeItineraryId, dayId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["itinerary", activeItineraryId] });
+      toast.success("Day removed.");
+    },
+    onError: (e) => toast.error(e?.message || "Could not remove day."),
+  });
+
+  const addAttractionMutation = useMutation({
+    mutationFn: ({ dayId, payload }) => itinerariesApi.days.addAttraction(activeItineraryId, dayId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["itinerary", activeItineraryId] });
+      setAttractionPicker(null);
+      setAttractionSearch("");
+      toast.success("Attraction added.");
+    },
+    onError: (e) => toast.error(e?.message || "Could not add attraction."),
+  });
+
+  const removeAttractionMutation = useMutation({
+    mutationFn: ({ dayId, entryId }) => itinerariesApi.days.removeAttraction(activeItineraryId, dayId, entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["itinerary", activeItineraryId] });
+      toast.success("Attraction removed.");
+    },
+    onError: (e) => toast.error(e?.message || "Could not remove attraction."),
+  });
+
+  const attractionsPickerQuery = useQuery({
+    queryKey: ["attractions-picker", attractionSearch],
+    queryFn: () => attractionsApi.list({ search: attractionSearch, per_page: 20 }),
+    enabled: !!attractionPicker,
+    staleTime: 30_000,
+  });
+  const pickerAttractions = (() => {
+    const d = attractionsPickerQuery.data;
+    if (!d) return [];
+    if (Array.isArray(d)) return d;
+    if (Array.isArray(d.data)) return d.data;
+    if (d.data && Array.isArray(d.data.data)) return d.data.data;
+    return [];
+  })();
+
   const activeItinerary = unwrapEntity(generateMutation.data) || unwrapEntity(itineraryDetailQuery.data);
   const days = normalizeDays(activeItinerary?.days);
   const usingSample = !user || !activeItinerary || days.length === 0;
@@ -198,18 +270,29 @@ function ItineraryPage() {
               {user ? `${t("itinerary.curatedFor")} ${user.full_name ?? user.email}` : t("itinerary.sample")}
             </p>
           </div>
-          <button
-            onClick={() => user && setShowForm((f) => !f)}
-            disabled={!user || generateMutation.isPending}
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--color-gold)] px-5 py-2.5 text-xs uppercase tracking-widest text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-60">
-            <Sparkles className="h-4 w-4"/>
-            {generateMutation.isPending
-              ? t("itinerary.generating", "Generating\u2026")
-              : showForm
-              ? t("itinerary.generateForm.cancel", "Cancel")
-              : t("itinerary.generateAi")}
-            <ChevronDown className={"h-3.5 w-3.5 transition-transform " + (showForm ? "rotate-180" : "")}/>
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => { if (user) { setShowForm((f) => !f); setShowCustomCreate(false); } }}
+              disabled={!user || generateMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--color-gold)] px-5 py-2.5 text-xs uppercase tracking-widest text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-60">
+              <Sparkles className="h-4 w-4"/>
+              {generateMutation.isPending
+                ? t("itinerary.generating", "Generating\u2026")
+                : showForm
+                ? t("itinerary.generateForm.cancel", "Cancel")
+                : t("itinerary.generateAi")}
+              <ChevronDown className={"h-3.5 w-3.5 transition-transform " + (showForm ? "rotate-180" : "")}/>
+            </button>
+            {user && (
+              <button
+                onClick={() => { setShowCustomCreate((f) => !f); setShowForm(false); }}
+                disabled={createMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--color-gold)] px-5 py-2.5 text-xs uppercase tracking-widest text-[var(--color-ink)] hover:bg-[var(--color-gold)]/10 transition disabled:opacity-60">
+                <PenLine className="h-4 w-4"/>
+                {showCustomCreate ? "Cancel" : "Build Custom"}
+              </button>
+            )}
+          </div>
         </div>
 
         {user && showForm && (
@@ -304,6 +387,30 @@ function ItineraryPage() {
           </div>
         )}
 
+        {user && showCustomCreate && (
+          <div className="mt-6 rounded-3xl border border-border bg-card p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="font-display text-2xl">Create Custom Itinerary</h2>
+              <button onClick={() => setShowCustomCreate(false)} className="rounded-full p-1 hover:bg-muted"><X className="h-4 w-4"/></button>
+            </div>
+            <label className="block">
+              <span className="eyebrow">Title</span>
+              <input type="text" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)}
+                placeholder="e.g. Nairobi Weekend Trip"
+                className="mt-1 w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-[var(--color-gold)]" autoFocus/>
+            </label>
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={() => customTitle.trim() && createMutation.mutate({ title: customTitle.trim() })}
+                disabled={!customTitle.trim() || createMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-full bg-[var(--color-gold)] px-6 py-2.5 text-xs uppercase tracking-widest text-[var(--color-ink)] disabled:opacity-60">
+                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : <PenLine className="h-4 w-4"/>}
+                {createMutation.isPending ? "Creating…" : "Create Itinerary"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {user && (<div className="mt-8 grid gap-6 lg:grid-cols-[18rem,1fr]">
             <aside className="rounded-3xl border border-border bg-card p-5">
               <div className="flex items-center justify-between gap-3">
@@ -356,6 +463,48 @@ function ItineraryPage() {
 
         {usingSample && user && !itinerariesQuery.isLoading && (<p className="mt-8 text-sm text-muted-foreground">{t("itinerary.emptyGenerated", "You do not have any saved itineraries yet. Use Generate with AI to create one from the backend.")}</p>)}
 
+        {attractionPicker && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setAttractionPicker(null)}>
+            <div className="relative w-full max-w-lg rounded-3xl bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-display text-xl">Add Attraction · Day {attractionPicker.dayNum}</h3>
+                <button onClick={() => setAttractionPicker(null)} className="rounded-full p-1 hover:bg-muted"><X className="h-4 w-4"/></button>
+              </div>
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"/>
+                <input type="text" value={attractionSearch} onChange={(e) => setAttractionSearch(e.target.value)}
+                  placeholder="Search attractions…"
+                  className="w-full rounded-lg border border-border bg-background pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[var(--color-gold)]" autoFocus/>
+              </div>
+              <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                {attractionsPickerQuery.isLoading && (
+                  <p className="flex items-center justify-center gap-2 py-6 text-center text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin"/> Searching…
+                  </p>
+                )}
+                {!attractionsPickerQuery.isLoading && pickerAttractions.length === 0 && (
+                  <p className="py-6 text-center text-sm text-muted-foreground">No attractions found. Try a different search term.</p>
+                )}
+                {pickerAttractions.map((a) => (
+                  <button key={a.id}
+                    onClick={() => addAttractionMutation.mutate({ dayId: attractionPicker.dayId, payload: { attraction_id: a.id } })}
+                    disabled={addAttractionMutation.isPending}
+                    className="flex w-full items-center gap-3 rounded-xl border border-border px-4 py-3 text-left transition hover:border-[var(--color-gold)]/50 disabled:opacity-60">
+                    {(a.thumbnail_url || a.cover_image_url) && (
+                      <img src={a.thumbnail_url || a.cover_image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover"/>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{a.name || a.title}</div>
+                      {(a.category || a.type) && <div className="text-xs text-muted-foreground">{a.category || a.type}</div>}
+                    </div>
+                    {addAttractionMutation.isPending && <Loader2 className="ml-auto h-3.5 w-3.5 shrink-0 animate-spin"/>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <ol className="mt-12 space-y-6">
           {visibleDays.map((d, i) => (
             <li key={d.day} className="rounded-3xl border border-border bg-card overflow-hidden">
@@ -373,6 +522,14 @@ function ItineraryPage() {
                     {d.duration && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {d.duration}</span>}
                   </div>
                 </div>
+                {!usingSample && d.raw_id && (
+                  <button onClick={() => removeDayMutation.mutate(d.raw_id)}
+                    disabled={removeDayMutation.isPending}
+                    title="Remove day"
+                    className="shrink-0 rounded-full p-1.5 text-muted-foreground transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20">
+                    <Trash2 className="h-4 w-4"/>
+                  </button>
+                )}
               </div>
 
               <div className="p-6 space-y-5">
@@ -411,7 +568,7 @@ function ItineraryPage() {
                   </div>
                 )}
 
-                {/* Highlights / tips */}
+                {/* Highlights */}
                 {d.highlights && d.highlights.length > 0 && (
                   <div className="rounded-2xl border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/5 p-4">
                     <div className="flex items-center gap-1.5 text-[0.62rem] uppercase tracking-widest text-[var(--color-gold)] mb-2">
@@ -447,17 +604,38 @@ function ItineraryPage() {
                 )}
 
                 {/* Stops / attractions */}
-                {Array.isArray(d.stops) && d.stops.length > 0 && (
+                {Array.isArray(d.stops) && d.stops.length > 0 ? (
                   <div>
                     <div className="text-[0.6rem] uppercase tracking-widest text-muted-foreground mb-2">Stops & Attractions</div>
                     <div className="flex flex-wrap gap-2">
                       {d.stops.map((stop, si) => (
-                        <span key={`${stop.name}-${si}`} className="rounded-full border border-border px-3 py-1 text-[0.62rem] uppercase tracking-widest text-muted-foreground">
+                        <span key={`${stop.name}-${si}`} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[0.62rem] uppercase tracking-widest text-muted-foreground">
+                          <MapPin className="h-2.5 w-2.5 shrink-0"/>
                           {stop.name}
+                          {!usingSample && d.raw_id && stop.id && (
+                            <button onClick={() => removeAttractionMutation.mutate({ dayId: d.raw_id, entryId: stop.id })}
+                              disabled={removeAttractionMutation.isPending}
+                              className="ml-0.5 transition hover:text-red-500">
+                              <X className="h-2.5 w-2.5"/>
+                            </button>
+                          )}
                         </span>
                       ))}
                     </div>
+                    {!usingSample && d.raw_id && (
+                      <button onClick={() => { setAttractionPicker({ dayId: d.raw_id, dayNum: d.day }); setAttractionSearch(""); }}
+                        className="mt-3 inline-flex items-center gap-1 text-[0.65rem] uppercase tracking-widest text-muted-foreground transition hover:text-[var(--color-gold)]">
+                        <Plus className="h-3 w-3"/> Add Attraction
+                      </button>
+                    )}
                   </div>
+                ) : (
+                  !usingSample && d.raw_id && (
+                    <button onClick={() => { setAttractionPicker({ dayId: d.raw_id, dayNum: d.day }); setAttractionSearch(""); }}
+                      className="inline-flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-2.5 text-[0.65rem] uppercase tracking-widest text-muted-foreground transition hover:border-[var(--color-gold)]/50 hover:text-[var(--color-gold)]">
+                      <Plus className="h-3.5 w-3.5"/> Add Attractions to This Day
+                    </button>
+                  )
                 )}
 
                 {/* Cost estimate */}
@@ -472,9 +650,61 @@ function ItineraryPage() {
           ))}
         </ol>
 
-        {usingSample && (<button className="mt-14 inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-xs uppercase tracking-widest opacity-70">
+        {usingSample && (
+          <button className="mt-14 inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-xs uppercase tracking-widest opacity-70">
             <Plus className="h-4 w-4"/> {t("itinerary.addDay")}
-          </button>)}
+          </button>
+        )}
+
+        {!usingSample && user && activeItinerary && (
+          <div className="mt-8">
+            {addDayForm ? (
+              <div className="rounded-3xl border border-[var(--color-gold)]/30 bg-card p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="font-display text-xl">Add New Day</h3>
+                  <button onClick={() => setAddDayForm(null)} className="rounded-full p-1 hover:bg-muted"><X className="h-4 w-4"/></button>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="eyebrow">Day Number</span>
+                    <input type="number" min="1" value={addDayForm.day_number}
+                      onChange={(e) => setAddDayForm((f) => ({ ...f, day_number: parseInt(e.target.value) || 1 }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-[var(--color-gold)]"/>
+                  </label>
+                  <label className="block">
+                    <span className="eyebrow">Title (optional)</span>
+                    <input type="text" value={addDayForm.title || ""}
+                      onChange={(e) => setAddDayForm((f) => ({ ...f, title: e.target.value }))}
+                      placeholder="e.g. City Exploration"
+                      className="mt-1 w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-[var(--color-gold)]"/>
+                  </label>
+                </div>
+                <label className="mt-4 block">
+                  <span className="eyebrow">Notes (optional)</span>
+                  <textarea value={addDayForm.narrative || ""} rows={3}
+                    onChange={(e) => setAddDayForm((f) => ({ ...f, narrative: e.target.value }))}
+                    placeholder="What's planned for this day?"
+                    className="mt-1 w-full resize-none rounded-lg border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-[var(--color-gold)]"/>
+                </label>
+                <div className="mt-4 flex justify-end gap-3">
+                  <button onClick={() => setAddDayForm(null)}
+                    className="rounded-full border border-border px-4 py-2 text-xs uppercase tracking-widest hover:bg-muted">Cancel</button>
+                  <button onClick={() => addDayMutation.mutate(addDayForm)}
+                    disabled={addDayMutation.isPending}
+                    className="inline-flex items-center gap-2 rounded-full bg-[var(--color-gold)] px-5 py-2 text-xs uppercase tracking-widest text-[var(--color-ink)] disabled:opacity-60">
+                    {addDayMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Plus className="h-3.5 w-3.5"/>}
+                    {addDayMutation.isPending ? "Adding…" : "Add Day"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setAddDayForm({ day_number: visibleDays.length + 1, title: "", narrative: "" })}
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--color-gold)]/50 px-6 py-3 text-xs uppercase tracking-widest transition hover:bg-[var(--color-gold)]/10">
+                <Plus className="h-4 w-4"/> Add Day
+              </button>
+            )}
+          </div>
+        )}
 
         {!user && (<div className="mt-16 rounded border border-border bg-card p-8">
             <h3 className="font-display text-2xl">{t("itinerary.saveTitle")}</h3>
@@ -515,6 +745,7 @@ function ItineraryPage() {
         return [];
       return days.map((day, index) => ({
         day: day.day_number ?? day.day ?? index + 1,
+        raw_id: day.id || null,
         title: day.day_title || day.title || `Day ${index + 1}`,
         detail: day.narrative || day.description || day.detail || "",
         time: day.start_time || day.time || "",
@@ -529,10 +760,11 @@ function ItineraryPage() {
         estimated_cost: day.estimated_cost || day.cost_estimate || "",
         stops: Array.isArray(day.attractions)
           ? day.attractions.map((item) => ({
-            name: item.name || item.attraction_name || item.title || "Attraction",
+            id: item.id || null,
+            name: item.name || item.attraction_name || item.title || item.attraction?.name || "Attraction",
           }))
           : Array.isArray(day.stops)
-          ? day.stops.map((s) => ({ name: typeof s === "string" ? s : s.name || "Stop" }))
+          ? day.stops.map((s) => ({ id: null, name: typeof s === "string" ? s : s.name || "Stop" }))
           : [],
       }));
     }

@@ -37,6 +37,12 @@ export async function api(path, init = {}) {
     const text = await res.text();
     const data = text ? safeJson(text) : null;
     if (!res.ok) {
+        if (res.status === 401) {
+            setToken(null);
+            if (typeof window !== "undefined") {
+                window.location.href = "/login";
+            }
+        }
         throw {
             status: res.status,
             message: (data && (data.message || data.error)) || res.statusText,
@@ -156,6 +162,13 @@ export const itinerariesApi = {
     generateQr: (id) => api(`/api/v1/itineraries/${id}/qr`, { method: "POST" }),
     getPublic: (token) => api(`/api/v1/public/itineraries/${token}`, { method: "GET" }),
     generate: (payload) => api("/api/v1/itineraries/generate", { method: "POST", json: payload }),
+    days: {
+        add: (itineraryId, payload) => api(`/api/v1/itineraries/${itineraryId}/days`, { method: "POST", json: payload }),
+        update: (itineraryId, dayId, payload) => api(`/api/v1/itineraries/${itineraryId}/days/${dayId}`, { method: "PATCH", json: payload }),
+        remove: (itineraryId, dayId) => api(`/api/v1/itineraries/${itineraryId}/days/${dayId}`, { method: "DELETE" }),
+        addAttraction: (itineraryId, dayId, payload) => api(`/api/v1/itineraries/${itineraryId}/days/${dayId}/attractions`, { method: "POST", json: payload }),
+        removeAttraction: (itineraryId, dayId, entryId) => api(`/api/v1/itineraries/${itineraryId}/days/${dayId}/attractions/${entryId}`, { method: "DELETE" }),
+    },
 };
 
 // ── Bookings ────────────────────────────────────────────────────
@@ -446,12 +459,14 @@ export const feedbackApi = {
             return api(`/api/v1/feedback/reviews${qs}`, { method: "GET" });
         },
         create: (payload) => api("/api/v1/feedback/reviews", { method: "POST", json: payload }),
+        adminModerate: (id, payload) => api(`/api/v1/admin/reviews/${id}`, { method: "PATCH", json: payload }),
     },
     media: {
         list: (params) => {
             const qs = params ? `?${new URLSearchParams(params)}` : "";
             return api(`/api/v1/feedback/gallery${qs}`, { method: "GET" });
         },
+        create: (payload) => api("/api/v1/feedback/gallery", { method: "POST", json: payload }),
     },
     contacts: {
         list: (destinationId) => {
@@ -461,6 +476,15 @@ export const feedbackApi = {
         create: (payload) => api("/api/v1/feedback/contacts", { method: "POST", json: payload }),
         delete: (id) => api(`/api/v1/feedback/contacts/${id}`, { method: "DELETE" }),
     },
+};
+
+// ── User Settings ─────────────────────────────────────────────────────────────
+export const settingsApi = {
+    get: () => api("/api/v1/settings", { method: "GET" }),
+    profile: (payload) => api("/api/v1/settings/profile", { method: "PATCH", json: payload }),
+    accessibility: (payload) => api("/api/v1/settings/accessibility", { method: "PATCH", json: payload }),
+    notifications: (payload) => api("/api/v1/settings/notifications", { method: "PATCH", json: payload }),
+    preferences: (payload) => api("/api/v1/settings/preferences", { method: "PATCH", json: payload }),
 };
 
 // Legacy exports for backward compatibility

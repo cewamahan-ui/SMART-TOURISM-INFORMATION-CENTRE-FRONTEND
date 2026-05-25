@@ -20,11 +20,7 @@ const EMPTY_FORM = {
   category: "wildlife",
   tourism_type: "",
   entry_fee: "",
-<<<<<<< HEAD
   media_urls: [""],
-=======
-  image_url: "",
->>>>>>> d7cf7cebdd0fbde3c7d8187e05726d79dec21d4e
   status: "draft",
   destination_id: "",
   is_wheelchair_accessible: false,
@@ -77,12 +73,9 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
 
   const openEdit = (attraction) => {
     setEditingId(attraction.id);
-<<<<<<< HEAD
     const existing = Array.isArray(attraction.media_urls) && attraction.media_urls.length > 0
       ? attraction.media_urls
       : attraction.image_url ? [attraction.image_url] : [""];
-=======
->>>>>>> d7cf7cebdd0fbde3c7d8187e05726d79dec21d4e
     setForm({
       name: attraction.name || "",
       description: attraction.description || "",
@@ -125,7 +118,6 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
     if (!form.name.trim()) { toast.error("Attraction name is required"); return; }
     setSaving(true);
     try {
-<<<<<<< HEAD
       const cleanUrls = (form.media_urls || []).map((u) => u.trim()).filter(Boolean);
       const coverUrl = cleanUrls[0] || null;
       const locationPayload = {
@@ -155,8 +147,6 @@ export default function AttractionsPanel({ attractions, businessProfileId, desti
         distance_to_major_town: form.distance_to_major_town || null,
       };
 
-=======
->>>>>>> d7cf7cebdd0fbde3c7d8187e05726d79dec21d4e
       if (editingId) {
         await attractionsApi.update(editingId, {
           name: form.name,

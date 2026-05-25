@@ -3,8 +3,10 @@ import { Link } from "@tanstack/react-router";
 import { Outlet, useLocation } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { useQuery } from "@tanstack/react-query";
-import { attractionsApi, publicApi } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { attractionsApi, publicApi, recommendationsApi, favoritesApi } from "@/lib/api";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState, useMemo } from "react";
 import { Search, MapPin, Heart, Moon, Sun, Map, Home, Globe } from "lucide-react";
 import { useI18n } from "@/language/i18n-provider";
@@ -33,11 +35,54 @@ function ExplorePage() {
   // All hooks must run unconditionally before any early return
   const search = Route.useSearch();
   const { t } = useI18n();
+  const { user } = useAuth();
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
   const [theme, setTheme] = useState("light");
   const [budget, setBudget] = useState(search.budget || "");
   const [currency, setCurrency] = useState(search.currency || "USD");
+
+  const queryClient = useQueryClient();
+
+  const recsQuery = useQuery({
+    queryKey: ["recommendations"],
+    queryFn: recommendationsApi.get,
+    enabled: !!user,
+    retry: false,
+  });
+
+  const favsQuery = useQuery({
+    queryKey: ["favorites"],
+    queryFn: favoritesApi.list,
+    enabled: !!user,
+    retry: false,
+  });
+
+  const favMap = useMemo(() => {
+    const raw = favsQuery.data;
+    let list = [];
+    if (Array.isArray(raw)) list = raw;
+    else if (Array.isArray(raw?.data)) list = raw.data;
+    else if (Array.isArray(raw?.data?.data)) list = raw.data.data;
+    const map = {};
+    list.forEach((f) => {
+      const aid = f.attraction_id || f.attraction?.id;
+      if (aid) map[String(aid)] = f.id;
+    });
+    return map;
+  }, [favsQuery.data]);
+
+  const addFavMutation = useMutation({
+    mutationFn: (attractionId) => favoritesApi.add(attractionId),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["favorites"] }); toast.success("Added to favourites"); },
+    onError: () => toast.error("Could not add favourite"),
+  });
+
+  const removeFavMutation = useMutation({
+    mutationFn: (entryId) => favoritesApi.remove(entryId),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["favorites"] }); toast.success("Removed from favourites"); },
+    onError: () => toast.error("Could not remove favourite"),
+  });
 
   const budgetInUSD = useMemo(() => {
     if (!budget) return "";
@@ -164,6 +209,46 @@ function ExplorePage() {
           </div>
         </div>
 
+        {/* Recommendations strip — only shown when logged in and recs are available */}
+        {user && arrayifyRecs(recsQuery.data).length > 0 && (
+          <div className="mt-8">
+            <div className="mb-4 flex items-center gap-2">
+              <Heart className="h-4 w-4 text-[var(--color-gold)]" />
+              <span className="eyebrow">Recommended for You</span>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {arrayifyRecs(recsQuery.data).slice(0, 8).map((item, idx) => {
+                const img = item.image_url || item.image || FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
+                const name = item.name || item.title || "Attraction";
+                const id = item.id;
+                return (
+                  <Link
+                    key={id ?? idx}
+                    to="/explore/$attractionId"
+                    params={{ attractionId: id }}
+                    className="group shrink-0 w-44 overflow-hidden rounded-2xl border border-border bg-card transition hover:border-[var(--color-gold)]"
+                  >
+                    <img
+                      src={img}
+                      alt={name}
+                      className="h-28 w-full object-cover transition duration-500 group-hover:scale-105"
+                      onError={(e) => { if (e.currentTarget.src !== FALLBACK_IMAGES[0]) e.currentTarget.src = FALLBACK_IMAGES[0]; }}
+                    />
+                    <div className="p-3">
+                      <p className="text-xs font-semibold leading-snug line-clamp-2">{name}</p>
+                      {item.county && (
+                        <p className="mt-1 flex items-center gap-1 text-[0.65rem] text-muted-foreground">
+                          <MapPin className="h-2.5 w-2.5" />{item.county}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Tab bar */}
         <div className="mt-10 flex flex-wrap items-center justify-between gap-6 border-y border-border py-5">
           <div className="flex flex-wrap gap-1">
@@ -220,7 +305,13 @@ function ExplorePage() {
         ) : (
           <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
             {filtered.map((it, idx) => (
-              <Card key={`${it._itemType || "item"}-${it.id ?? idx}-${idx}`} item={it} idx={idx} />
+              <Card key={`${it._itemType || "item"}-${it.id ?? idx}-${idx}`} item={it} idx={idx}
+                isFavorited={user ? !!favMap[String(it.id)] : false}
+                onFavoriteToggle={user ? () => {
+                  if (favMap[String(it.id)]) removeFavMutation.mutate(it.id);
+                  else addFavMutation.mutate(it.id);
+                } : null}
+              />
             ))}
           </div>
         )}
@@ -238,7 +329,7 @@ function ExplorePage() {
   );
 }
 
-function Card({ item, idx }) {
+function Card({ item, idx, isFavorited, onFavoriteToggle }) {
   const { t } = useI18n();
   const img = item._gallery?.[0] || item.image || item.image_url || FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
   const name = item._name || item.name || item.title || t("explore.untitledExperience");
@@ -258,8 +349,11 @@ function Card({ item, idx }) {
             if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
           }}
           className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" />
-        <button className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-background/90 text-foreground transition hover:bg-accent hover:text-accent-foreground">
-          <Heart className="h-4 w-4" />
+        <button
+          onClick={() => onFavoriteToggle && onFavoriteToggle(favEntry)}
+          title={isFavorited ? "Remove from favourites" : "Add to favourites"}
+          className={"absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-background/90 transition hover:bg-accent " + (isFavorited ? "text-red-500" : "text-foreground hover:text-accent-foreground")}>
+          <Heart className="h-4 w-4" fill={isFavorited ? "currentColor" : "none"} />
         </button>
         <span className="absolute left-4 top-4 rounded-full bg-background/90 px-3 py-1 text-[0.62rem] uppercase tracking-widest text-foreground">
           {isAccom ? <span className="flex items-center gap-1"><Home className="h-3 w-3" /> Accommodation</span> : (item.kind || t("explore.defaultKind"))}
@@ -335,4 +429,13 @@ function getPreferenceScore(item, categories) {
     const needle = String(category || "").toLowerCase().trim();
     return !needle ? score : text.includes(needle) ? score + 1 : score;
   }, 0);
+}
+
+function arrayifyRecs(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (Array.isArray(v.data)) return v.data;
+  if (Array.isArray(v.recommendations)) return v.recommendations;
+  if (Array.isArray(v.items)) return v.items;
+  return [];
 }

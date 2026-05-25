@@ -13,6 +13,7 @@ import {
   QrCode, FileText, Shield, CalendarCheck, RefreshCw,
   CheckCircle, XCircle, Trash2, Eye, ChevronDown, ChevronUp,
   Search, RotateCcw, Plus, X, MapPin, Info, TrendingUp, Phone,
+  MessageSquare, Star, ThumbsUp, ThumbsDown, Minus,
 } from "lucide-react";
 import { KENYA_COUNTIES, KENYA_SUB_COUNTIES } from "@/lib/kenya-locations";
 import {
@@ -36,6 +37,7 @@ const TABS = [
   { id: "audit",         label: "Audit Logs",        icon: FileText },
   { id: "roles",         label: "Roles & Perms",     icon: Shield },
   { id: "emergency",     label: "Emergency Contacts", icon: Phone },
+  { id: "feedback",      label: "Feedback",           icon: MessageSquare },
 ];
 
 function unwrap(result) {
@@ -1552,6 +1554,168 @@ function EmergencyContactsTab() {
   );
 }
 
+// ── Feedback Tab ─────────────────────────────────────────────────────────────
+const REVIEW_STATUSES = ["approved", "rejected", "flagged", "hidden", "pending"];
+
+function sentimentOf(rating) {
+  const r = Number(rating) || 0;
+  if (r >= 4) return { label: "Positive", icon: ThumbsUp, cls: "text-emerald-600" };
+  if (r <= 2) return { label: "Negative", icon: ThumbsDown, cls: "text-red-500" };
+  return { label: "Neutral", icon: Minus, cls: "text-muted-foreground" };
+}
+
+function FeedbackTab() {
+  const { data: raw, loading, error, reload } = useAdminFetch(() => feedbackApi.reviews.list({ per_page: 50 }));
+  const [selected, setSelected] = useState(null);
+  const [moderating, setModerating] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sentimentFilter, setSentimentFilter] = useState("all");
+
+  const reviews = (() => {
+    if (Array.isArray(raw)) return raw;
+    return [];
+  })();
+
+  const filtered = reviews.filter((r) => {
+    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    if (sentimentFilter !== "all") {
+      const s = sentimentOf(r.rating).label.toLowerCase();
+      if (s !== sentimentFilter) return false;
+    }
+    return true;
+  });
+
+  async function handleModerate(id, status) {
+    setModerating(true);
+    try {
+      await feedbackApi.reviews.adminModerate(id, { status });
+      toast.success(`Review marked as ${status}`);
+      reload();
+      if (selected?.id === id) setSelected((prev) => ({ ...prev, status }));
+    } catch (e) {
+      toast.error(e?.message || "Moderation failed");
+    } finally {
+      setModerating(false);
+    }
+  }
+
+  return (
+    <SectionShell title="Tourist Feedback" onReload={reload} loading={loading}>
+      {/* Filters */}
+      <div className="mb-5 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {["all", "positive", "neutral", "negative"].map((s) => (
+            <button key={s} onClick={() => setSentimentFilter(s)}
+              className={"rounded-full border px-3 py-1 text-xs uppercase tracking-widest transition " +
+                (sentimentFilter === s ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 text-foreground" : "border-border text-muted-foreground hover:border-[var(--color-gold)]/50")}>
+              {s === "all" ? "All Sentiment" : s}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["all", ...REVIEW_STATUSES].map((s) => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={"rounded-full border px-3 py-1 text-xs uppercase tracking-widest transition " +
+                (statusFilter === s ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 text-foreground" : "border-border text-muted-foreground hover:border-[var(--color-gold)]/50")}>
+              {s === "all" ? "All Status" : s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && <LoadingState />}
+      {error && <ErrorState msg={error} onRetry={reload} />}
+      {!loading && !error && filtered.length === 0 && <EmptyState msg="No reviews match the selected filters." />}
+
+      {!loading && !error && filtered.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((review) => {
+            const sentiment = sentimentOf(review.rating);
+            const SIcon = sentiment.icon;
+            const stars = Math.min(5, Math.max(0, Math.round(Number(review.rating) || 0)));
+            const author = review.user?.full_name || review.user?.username || review.tourist?.full_name || "Anonymous";
+            const date = review.created_at ? new Date(review.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : null;
+            return (
+              <div key={review.id}
+                onClick={() => setSelected(review)}
+                className="cursor-pointer rounded-2xl border border-border bg-card p-4 transition hover:border-[var(--color-gold)]/50 hover:shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className="h-3.5 w-3.5"
+                        fill={i < stars ? "var(--color-gold)" : "none"}
+                        stroke={i < stars ? "var(--color-gold)" : "currentColor"} />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <SIcon className={`h-3.5 w-3.5 ${sentiment.cls}`} />
+                    <span className={`text-[0.6rem] uppercase tracking-widest font-semibold ${sentiment.cls}`}>{sentiment.label}</span>
+                  </div>
+                </div>
+                {review.title && <h4 className="mt-2 font-semibold text-sm line-clamp-1">{review.title}</h4>}
+                {review.body && <p className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">{review.body}</p>}
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">{author}</span>
+                  <div className="flex items-center gap-2">
+                    {date && <span className="text-xs text-muted-foreground">{date}</span>}
+                    <Badge status={review.status || "pending"} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Review detail modal */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSelected(null)}>
+          <div className="relative w-full max-w-lg rounded-3xl bg-card p-6 shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h3 className="font-display text-xl">{selected.title || "Review Detail"}</h3>
+              <button onClick={() => setSelected(null)} className="shrink-0 rounded-full p-1 hover:bg-muted"><X className="h-4 w-4"/></button>
+            </div>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const s = Math.round(Number(selected.rating) || 0);
+                  return <Star key={i} className="h-4 w-4" fill={i < s ? "var(--color-gold)" : "none"} stroke={i < s ? "var(--color-gold)" : "currentColor"} />;
+                })}
+              </div>
+              <Badge status={selected.status || "pending"} />
+              {(() => { const sm = sentimentOf(selected.rating); const SI = sm.icon; return <span className={`flex items-center gap-1 text-xs font-semibold ${sm.cls}`}><SI className="h-3.5 w-3.5"/>{sm.label}</span>; })()}
+            </div>
+
+            {selected.body && <p className="text-sm leading-relaxed text-foreground/85 mb-4">{selected.body}</p>}
+
+            <dl className="space-y-2 text-sm mb-6">
+              {selected.target_type && <div className="flex gap-3"><dt className="text-xs uppercase tracking-widest text-muted-foreground w-24 shrink-0">Type</dt><dd className="capitalize">{selected.target_type}</dd></div>}
+              {selected.target_id && <div className="flex gap-3"><dt className="text-xs uppercase tracking-widest text-muted-foreground w-24 shrink-0">Target ID</dt><dd className="font-mono text-xs">{selected.target_id}</dd></div>}
+              {(selected.user?.full_name || selected.tourist?.full_name) && <div className="flex gap-3"><dt className="text-xs uppercase tracking-widest text-muted-foreground w-24 shrink-0">Author</dt><dd>{selected.user?.full_name || selected.tourist?.full_name}</dd></div>}
+              {selected.created_at && <div className="flex gap-3"><dt className="text-xs uppercase tracking-widest text-muted-foreground w-24 shrink-0">Date</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></div>}
+            </dl>
+
+            <div>
+              <div className="eyebrow mb-2">Moderate</div>
+              <div className="flex flex-wrap gap-2">
+                {REVIEW_STATUSES.map((s) => (
+                  <button key={s} onClick={() => handleModerate(selected.id, s)}
+                    disabled={moderating || selected.status === s}
+                    className={"rounded-full border px-4 py-1.5 text-xs uppercase tracking-widest transition disabled:opacity-40 " +
+                      (selected.status === s ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 text-foreground" : "border-border text-muted-foreground hover:border-[var(--color-gold)]/50")}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </SectionShell>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 function AdminDashboard() {
   const { user } = useAuth();
@@ -1604,6 +1768,7 @@ function AdminDashboard() {
     audit:         <AuditLogsTab />,
     roles:         <RolesTab />,
     emergency:     <EmergencyContactsTab />,
+    feedback:      <FeedbackTab />,
   };
 
   return (

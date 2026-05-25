@@ -142,7 +142,8 @@ function Card({ item, idx, onRemove, isRemoving }) {
           <MapPin className="h-3 w-3" /> {place}
         </p>
         <Link
-          to="/explore"
+          to="/explore/$attractionId"
+          params={{ attractionId: item.id }}
           className="mt-4 text-xs uppercase tracking-widest text-foreground underline underline-offset-8 decoration-[var(--color-gold)] decoration-2"
         >
           View Details →
