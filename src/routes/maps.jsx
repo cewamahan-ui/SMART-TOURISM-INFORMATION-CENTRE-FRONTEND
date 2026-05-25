@@ -19,7 +19,7 @@ function MapsPage() {
   const [query, setQuery] = useState("");
   const attractionsQuery = useQuery({
     queryKey: ["maps-attractions"],
-    queryFn: attractionsApi.list,
+    queryFn: () => attractionsApi.list(),
     retry: false,
   });
 
@@ -68,12 +68,22 @@ function MapsPage() {
           <p className="mt-6 text-sm text-muted-foreground">Loading attraction maps from the backend...</p>
         )}
 
-        {!attractionsQuery.isLoading && filtered.length === 0 && (
+        {attractionsQuery.isError && (
+          <div className="mt-10 rounded-3xl border border-border bg-card p-8 text-center">
+            <Map className="mx-auto h-10 w-10 text-destructive" />
+            <h2 className="mt-4 font-display text-3xl">Could not load attractions</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {attractionsQuery.error?.message || "Unable to reach the backend. Make sure the server is running."}
+            </p>
+          </div>
+        )}
+
+        {!attractionsQuery.isLoading && !attractionsQuery.isError && filtered.length === 0 && (
           <div className="mt-10 rounded-3xl border border-border bg-card p-8 text-center">
             <Map className="mx-auto h-10 w-10 text-[var(--color-gold)]" />
-            <h2 className="mt-4 font-display text-3xl">No backend attractions available</h2>
+            <h2 className="mt-4 font-display text-3xl">No approved attractions yet</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              The map view only shows attractions that the backend returns.
+              Attractions appear here once an admin approves them. Add attractions via the business dashboard and set their status to approved.
             </p>
           </div>
         )}

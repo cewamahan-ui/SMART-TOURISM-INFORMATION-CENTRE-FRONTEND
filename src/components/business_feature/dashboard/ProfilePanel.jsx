@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { businessApi } from "@/lib/api";
 import { toast } from "sonner";
-import { Clock, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import { Clock, CheckCircle, XCircle, RefreshCw, MapPin, Phone, Globe, Building2 } from "lucide-react";
+import { KENYA_COUNTIES, KENYA_SUB_COUNTIES, KENYA_TOURISM_TYPES } from "@/lib/kenya-locations";
 
 // Valid values from backend BusinessRegistrationRequestCreateSchema
 const BUSINESS_TYPES = [
@@ -10,6 +11,8 @@ const BUSINESS_TYPES = [
   { value: "tour_operator", label: "Tour Operator" },
   { value: "transport", label: "Transport Provider" },
   { value: "attraction", label: "Attraction / Activity" },
+  { value: "culture_hub", label: "Cultural / Community Enterprise" },
+  { value: "conservation", label: "Conservation / Wildlife" },
   { value: "other", label: "Other" },
 ];
 
@@ -49,14 +52,39 @@ export default function ProfilePanel({ profile, registration, onProfileUpdate, o
   const [regForm, setRegForm] = useState({
     business_name: "",
     business_type: "attraction",
+    tourism_type: "",
+    county: "",
+    sub_county: "",
+    ward: "",
+    locality: "",
+    gps_coordinates: "",
+    phone: "",
+    email: "",
+    website: "",
+    description: "",
+    license_number: "",
+    year_established: "",
+    distance_to_major_town: "",
+    unique_features: "",
   });
   const [editForm, setEditForm] = useState({
     business_name: profile?.business_name || "",
     business_type: profile?.business_type || "attraction",
+    tourism_type: profile?.tourism_type || "",
     description: profile?.description || "",
     address: profile?.address || "",
+    county: profile?.county || "",
+    sub_county: profile?.sub_county || "",
+    ward: profile?.ward || "",
+    locality: profile?.locality || "",
+    gps_coordinates: profile?.gps_coordinates || "",
     phone: profile?.phone || "",
     email: profile?.email || "",
+    website: profile?.website || "",
+    license_number: profile?.license_number || "",
+    year_established: profile?.year_established || "",
+    distance_to_major_town: profile?.distance_to_major_town || "",
+    unique_features: profile?.unique_features || "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -71,6 +99,22 @@ export default function ProfilePanel({ profile, registration, onProfileUpdate, o
       const result = await businessApi.registrations.submit({
         business_name: regForm.business_name.trim(),
         business_type: regForm.business_type,
+        registration_doc: {
+          tourism_type: regForm.tourism_type || undefined,
+          county: regForm.county || undefined,
+          sub_county: regForm.sub_county || undefined,
+          ward: regForm.ward || undefined,
+          locality: regForm.locality || undefined,
+          gps_coordinates: regForm.gps_coordinates || undefined,
+          phone: regForm.phone || undefined,
+          email: regForm.email || undefined,
+          website: regForm.website || undefined,
+          description: regForm.description || undefined,
+          license_number: regForm.license_number || undefined,
+          year_established: regForm.year_established || undefined,
+          distance_to_major_town: regForm.distance_to_major_town || undefined,
+          unique_features: regForm.unique_features || undefined,
+        },
       });
       toast.success("Registration submitted! Awaiting admin approval.");
       // result has {message, registration}
@@ -97,10 +141,21 @@ export default function ProfilePanel({ profile, registration, onProfileUpdate, o
       await businessApi.profiles.update({
         business_name: editForm.business_name.trim(),
         business_type: editForm.business_type,
+        tourism_type: editForm.tourism_type || undefined,
         description: editForm.description || undefined,
         address: editForm.address || undefined,
+        county: editForm.county || undefined,
+        sub_county: editForm.sub_county || undefined,
+        ward: editForm.ward || undefined,
+        locality: editForm.locality || undefined,
+        gps_coordinates: editForm.gps_coordinates || undefined,
         phone: editForm.phone || undefined,
         email: editForm.email || undefined,
+        website: editForm.website || undefined,
+        license_number: editForm.license_number || undefined,
+        year_established: editForm.year_established || undefined,
+        distance_to_major_town: editForm.distance_to_major_town || undefined,
+        unique_features: editForm.unique_features || undefined,
       });
       toast.success("Profile updated");
       // Re-fetch the fresh profile
@@ -146,29 +201,185 @@ export default function ProfilePanel({ profile, registration, onProfileUpdate, o
         <p className="mb-5 text-sm text-muted-foreground">
           Fill in your business details. An admin will review your request and approve or reject it.
         </p>
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Business Name *">
-              <input
-                value={regForm.business_name}
-                onChange={(e) => setRegForm({ ...regForm, business_name: e.target.value })}
-                className="input-base"
-                placeholder="e.g. Safari Adventures Ltd"
-                required
+        <form onSubmit={handleRegister} className="space-y-6">
+          {/* Basic Info */}
+          <RegSection title="Basic Information" icon={<Building2 className="h-4 w-4" />}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Business / Product Name *">
+                <input
+                  value={regForm.business_name}
+                  onChange={(e) => setRegForm({ ...regForm, business_name: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. Safari Adventures Ltd"
+                  required
+                />
+              </FormField>
+              <FormField label="Business Type *">
+                <select
+                  value={regForm.business_type}
+                  onChange={(e) => setRegForm({ ...regForm, business_type: e.target.value })}
+                  className="input-base"
+                >
+                  {BUSINESS_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Tourism Type">
+                <select
+                  value={regForm.tourism_type}
+                  onChange={(e) => setRegForm({ ...regForm, tourism_type: e.target.value })}
+                  className="input-base"
+                >
+                  <option value="">Select tourism type…</option>
+                  {KENYA_TOURISM_TYPES.map((tt) => (
+                    <option key={tt} value={tt}>{tt}</option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="License / Registration No.">
+                <input
+                  value={regForm.license_number}
+                  onChange={(e) => setRegForm({ ...regForm, license_number: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. TRB/2024/00123"
+                />
+              </FormField>
+              <FormField label="Year Established">
+                <input
+                  type="number"
+                  min="1900"
+                  max={new Date().getFullYear()}
+                  value={regForm.year_established}
+                  onChange={(e) => setRegForm({ ...regForm, year_established: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. 2015"
+                />
+              </FormField>
+            </div>
+            <FormField label="Description / Product Overview">
+              <textarea
+                value={regForm.description}
+                onChange={(e) => setRegForm({ ...regForm, description: e.target.value })}
+                rows={3}
+                className="input-base resize-none"
+                placeholder="Brief description of your tourism product or service…"
               />
             </FormField>
-            <FormField label="Business Type *">
-              <select
-                value={regForm.business_type}
-                onChange={(e) => setRegForm({ ...regForm, business_type: e.target.value })}
-                className="input-base"
-              >
-                {BUSINESS_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
+            <FormField label="Unique Features / Selling Points">
+              <textarea
+                value={regForm.unique_features}
+                onChange={(e) => setRegForm({ ...regForm, unique_features: e.target.value })}
+                rows={2}
+                className="input-base resize-none"
+                placeholder="What makes your business/product stand out?"
+              />
             </FormField>
-          </div>
+          </RegSection>
+
+          {/* Location */}
+          <RegSection title="Location" icon={<MapPin className="h-4 w-4" />}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="County *">
+                <select
+                  value={regForm.county}
+                  onChange={(e) => setRegForm({ ...regForm, county: e.target.value, sub_county: "", ward: "" })}
+                  className="input-base"
+                >
+                  <option value="">Select county…</option>
+                  {KENYA_COUNTIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Sub-County">
+                {regForm.county && KENYA_SUB_COUNTIES[regForm.county]?.length > 0 ? (
+                  <select
+                    value={regForm.sub_county}
+                    onChange={(e) => setRegForm({ ...regForm, sub_county: e.target.value })}
+                    className="input-base"
+                  >
+                    <option value="">Select sub-county…</option>
+                    {KENYA_SUB_COUNTIES[regForm.county].map((sc) => (
+                      <option key={sc} value={sc}>{sc}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={regForm.sub_county}
+                    onChange={(e) => setRegForm({ ...regForm, sub_county: e.target.value })}
+                    className="input-base"
+                    placeholder="Sub-county name"
+                  />
+                )}
+              </FormField>
+              <FormField label="Ward">
+                <input
+                  value={regForm.ward}
+                  onChange={(e) => setRegForm({ ...regForm, ward: e.target.value })}
+                  className="input-base"
+                  placeholder="Ward name"
+                />
+              </FormField>
+              <FormField label="Locality / Nearest Landmark">
+                <input
+                  value={regForm.locality}
+                  onChange={(e) => setRegForm({ ...regForm, locality: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. Near Nairobi National Park"
+                />
+              </FormField>
+              <FormField label="GPS Coordinates">
+                <input
+                  value={regForm.gps_coordinates}
+                  onChange={(e) => setRegForm({ ...regForm, gps_coordinates: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. -1.2921, 36.8219"
+                />
+              </FormField>
+              <FormField label="Distance to Major Town / Tourism Hub">
+                <input
+                  value={regForm.distance_to_major_town}
+                  onChange={(e) => setRegForm({ ...regForm, distance_to_major_town: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. 15 km from Nairobi"
+                />
+              </FormField>
+            </div>
+          </RegSection>
+
+          {/* Contact */}
+          <RegSection title="Contact Information" icon={<Phone className="h-4 w-4" />}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Phone Number">
+                <input
+                  value={regForm.phone}
+                  onChange={(e) => setRegForm({ ...regForm, phone: e.target.value })}
+                  className="input-base"
+                  placeholder="+254 700 000 000"
+                />
+              </FormField>
+              <FormField label="Email Address">
+                <input
+                  type="email"
+                  value={regForm.email}
+                  onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
+                  className="input-base"
+                  placeholder="contact@yourbusiness.com"
+                />
+              </FormField>
+              <FormField label="Website">
+                <input
+                  type="url"
+                  value={regForm.website}
+                  onChange={(e) => setRegForm({ ...regForm, website: e.target.value })}
+                  className="input-base"
+                  placeholder="https://www.yourbusiness.com"
+                />
+              </FormField>
+            </div>
+          </RegSection>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-3">
             <button
@@ -196,62 +407,192 @@ export default function ProfilePanel({ profile, registration, onProfileUpdate, o
     return (
       <div className="rounded-2xl border border-[var(--color-gold)]/30 bg-card p-6">
         <h3 className="mb-5 font-display text-2xl">Edit Business Profile</h3>
-        <form onSubmit={handleUpdateProfile} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Business Name *">
-              <input
-                value={editForm.business_name}
-                onChange={(e) => setEditForm({ ...editForm, business_name: e.target.value })}
-                className="input-base"
-                required
+        <form onSubmit={handleUpdateProfile} className="space-y-6">
+          {/* Basic Info */}
+          <RegSection title="Basic Information" icon={<Building2 className="h-4 w-4" />}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Business Name *">
+                <input
+                  value={editForm.business_name}
+                  onChange={(e) => setEditForm({ ...editForm, business_name: e.target.value })}
+                  className="input-base"
+                  required
+                />
+              </FormField>
+              <FormField label="Business Type">
+                <select
+                  value={editForm.business_type}
+                  onChange={(e) => setEditForm({ ...editForm, business_type: e.target.value })}
+                  className="input-base"
+                >
+                  {BUSINESS_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Tourism Type">
+                <select
+                  value={editForm.tourism_type}
+                  onChange={(e) => setEditForm({ ...editForm, tourism_type: e.target.value })}
+                  className="input-base"
+                >
+                  <option value="">Select tourism type…</option>
+                  {KENYA_TOURISM_TYPES.map((tt) => (
+                    <option key={tt} value={tt}>{tt}</option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="License / Registration No.">
+                <input
+                  value={editForm.license_number}
+                  onChange={(e) => setEditForm({ ...editForm, license_number: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. TRB/2024/00123"
+                />
+              </FormField>
+              <FormField label="Year Established">
+                <input
+                  type="number"
+                  min="1900"
+                  max={new Date().getFullYear()}
+                  value={editForm.year_established}
+                  onChange={(e) => setEditForm({ ...editForm, year_established: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. 2015"
+                />
+              </FormField>
+            </div>
+            <FormField label="Description">
+              <textarea
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                rows={3}
+                className="input-base resize-none"
+                placeholder="Brief description of your business…"
               />
             </FormField>
-            <FormField label="Business Type">
-              <select
-                value={editForm.business_type}
-                onChange={(e) => setEditForm({ ...editForm, business_type: e.target.value })}
-                className="input-base"
-              >
-                {BUSINESS_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-            </FormField>
-            <FormField label="Address">
-              <input
-                value={editForm.address}
-                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                className="input-base"
-                placeholder="Physical address"
+            <FormField label="Unique Features / Selling Points">
+              <textarea
+                value={editForm.unique_features}
+                onChange={(e) => setEditForm({ ...editForm, unique_features: e.target.value })}
+                rows={2}
+                className="input-base resize-none"
+                placeholder="What makes your business/product stand out?"
               />
             </FormField>
-            <FormField label="Phone">
-              <input
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                className="input-base"
-                placeholder="+254 700 000 000"
-              />
-            </FormField>
-            <FormField label="Email">
-              <input
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                className="input-base"
-                placeholder="contact@yourbusiness.com"
-              />
-            </FormField>
-          </div>
-          <FormField label="Description">
-            <textarea
-              value={editForm.description}
-              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-              rows={3}
-              className="input-base resize-none"
-              placeholder="Brief description of your business…"
-            />
-          </FormField>
+          </RegSection>
+
+          {/* Location */}
+          <RegSection title="Location" icon={<MapPin className="h-4 w-4" />}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="County">
+                <select
+                  value={editForm.county}
+                  onChange={(e) => setEditForm({ ...editForm, county: e.target.value, sub_county: "", ward: "" })}
+                  className="input-base"
+                >
+                  <option value="">Select county…</option>
+                  {KENYA_COUNTIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Sub-County">
+                {editForm.county && KENYA_SUB_COUNTIES[editForm.county]?.length > 0 ? (
+                  <select
+                    value={editForm.sub_county}
+                    onChange={(e) => setEditForm({ ...editForm, sub_county: e.target.value })}
+                    className="input-base"
+                  >
+                    <option value="">Select sub-county…</option>
+                    {KENYA_SUB_COUNTIES[editForm.county].map((sc) => (
+                      <option key={sc} value={sc}>{sc}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={editForm.sub_county}
+                    onChange={(e) => setEditForm({ ...editForm, sub_county: e.target.value })}
+                    className="input-base"
+                    placeholder="Sub-county name"
+                  />
+                )}
+              </FormField>
+              <FormField label="Ward">
+                <input
+                  value={editForm.ward}
+                  onChange={(e) => setEditForm({ ...editForm, ward: e.target.value })}
+                  className="input-base"
+                  placeholder="Ward name"
+                />
+              </FormField>
+              <FormField label="Locality / Nearest Landmark">
+                <input
+                  value={editForm.locality}
+                  onChange={(e) => setEditForm({ ...editForm, locality: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. Near Nairobi National Park"
+                />
+              </FormField>
+              <FormField label="Address">
+                <input
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  className="input-base"
+                  placeholder="Physical / postal address"
+                />
+              </FormField>
+              <FormField label="GPS Coordinates">
+                <input
+                  value={editForm.gps_coordinates}
+                  onChange={(e) => setEditForm({ ...editForm, gps_coordinates: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. -1.2921, 36.8219"
+                />
+              </FormField>
+              <FormField label="Distance to Major Town">
+                <input
+                  value={editForm.distance_to_major_town}
+                  onChange={(e) => setEditForm({ ...editForm, distance_to_major_town: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. 15 km from Nairobi"
+                />
+              </FormField>
+            </div>
+          </RegSection>
+
+          {/* Contact */}
+          <RegSection title="Contact Information" icon={<Phone className="h-4 w-4" />}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Phone">
+                <input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="input-base"
+                  placeholder="+254 700 000 000"
+                />
+              </FormField>
+              <FormField label="Email">
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="input-base"
+                  placeholder="contact@yourbusiness.com"
+                />
+              </FormField>
+              <FormField label="Website">
+                <input
+                  type="url"
+                  value={editForm.website}
+                  onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+                  className="input-base"
+                  placeholder="https://www.yourbusiness.com"
+                />
+              </FormField>
+            </div>
+          </RegSection>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-3">
             <button
@@ -315,14 +656,29 @@ export default function ProfilePanel({ profile, registration, onProfileUpdate, o
               {profile.description && (
                 <p className="mt-3 text-sm text-foreground">{profile.description}</p>
               )}
-              {profile.address && (
-                <p className="mt-2 text-xs text-muted-foreground">📍 {profile.address}</p>
+              {(profile.county || profile.address) && (
+                <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {[profile.county, profile.sub_county, profile.ward, profile.address].filter(Boolean).join(", ")}
+                </p>
               )}
-              {(profile.phone || profile.email) && (
+              {(profile.phone || profile.email || profile.website) && (
                 <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                  {profile.phone && <span>📞 {profile.phone}</span>}
+                  {profile.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {profile.phone}</span>}
                   {profile.email && <span>✉ {profile.email}</span>}
+                  {profile.website && (
+                    <a href={profile.website} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 underline underline-offset-2">
+                      <Globe className="h-3 w-3" /> Website
+                    </a>
+                  )}
                 </div>
+              )}
+              {profile.tourism_type && (
+                <p className="mt-2 text-xs text-muted-foreground">Tourism Type: {profile.tourism_type}</p>
+              )}
+              {profile.unique_features && (
+                <p className="mt-2 text-xs text-foreground/80 italic">{profile.unique_features}</p>
               )}
             </div>
             <span
@@ -338,10 +694,21 @@ export default function ProfilePanel({ profile, registration, onProfileUpdate, o
               setEditForm({
                 business_name: profile.business_name || "",
                 business_type: profile.business_type || "attraction",
+                tourism_type: profile.tourism_type || "",
                 description: profile.description || "",
                 address: profile.address || "",
+                county: profile.county || "",
+                sub_county: profile.sub_county || "",
+                ward: profile.ward || "",
+                locality: profile.locality || "",
+                gps_coordinates: profile.gps_coordinates || "",
                 phone: profile.phone || "",
                 email: profile.email || "",
+                website: profile.website || "",
+                license_number: profile.license_number || "",
+                year_established: profile.year_established || "",
+                distance_to_major_town: profile.distance_to_major_town || "",
+                unique_features: profile.unique_features || "",
               });
               setMode("edit");
             }}
@@ -369,5 +736,17 @@ function FormField({ label, children }) {
       <span className="mb-1 block text-xs uppercase tracking-widest text-muted-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+function RegSection({ title, icon, children }) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
+      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <span className="text-[var(--color-gold)]">{icon}</span>
+        {title}
+      </div>
+      {children}
+    </div>
   );
 }

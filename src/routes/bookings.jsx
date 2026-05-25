@@ -2,10 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { bookingsApi } from "@/lib/api";
+import { bookingsApi, paymentsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/language/i18n-provider";
-import { Calendar, CheckCircle2, Hotel, Bus, Package, MapPin, XCircle, Clock, CreditCard, Smartphone, Loader2 } from "lucide-react";
+import { Calendar, CheckCircle2, Hotel, Bus, Package, MapPin, XCircle, Clock, CreditCard, Smartphone, X, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
@@ -104,11 +104,6 @@ function BookingCard({ booking, index }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       setConfirmCancel(false);
-      toast.success("Booking cancelled successfully");
-    },
-    onError: (err) => {
-      toast.error(err?.message || "Failed to cancel booking. Please try again.");
-      setConfirmCancel(false);
     },
   });
 
@@ -172,9 +167,10 @@ function BookingCard({ booking, index }) {
           {canPay && (
             <button
               onClick={() => setShowPayment(true)}
-              className="flex items-center gap-1.5 rounded-full bg-[var(--color-gold)] px-3 py-1 text-xs uppercase tracking-widest text-[var(--color-ink)] hover:brightness-110 transition"
+              className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-gold)] px-3 py-1 text-xs uppercase tracking-widest text-[var(--color-ink)] font-medium transition hover:brightness-95"
             >
-              <CreditCard className="h-3 w-3" /> Pay Now
+              <CreditCard className="h-3 w-3" />
+              Pay Now
             </button>
           )}
           {canCancel && (
@@ -207,17 +203,6 @@ function BookingCard({ booking, index }) {
         </div>
       </div>
 
-      {showPayment && (
-        <PaymentModal
-          booking={booking}
-          onClose={() => setShowPayment(false)}
-          onSuccess={() => {
-            setShowPayment(false);
-            queryClient.invalidateQueries({ queryKey: ["bookings"] });
-          }}
-        />
-      )}
-
       {/* Items breakdown */}
       {expanded && items.length > 0 && (
         <div className="border-t border-border divide-y divide-border/50">
@@ -241,229 +226,307 @@ function BookingCard({ booking, index }) {
           ))}
         </div>
       )}
+
+      {showPayment && (
+        <PaymentModal
+          booking={booking}
+          onClose={() => setShowPayment(false)}
+          onPaid={() => {
+            setShowPayment(false);
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+          }}
+        />
+      )}
     </div>
   );
 }
 
-// ── Payment Modal ─────────────────────────────────────────────────────────────
-function PaymentModal({ booking, onClose, onSuccess }) {
+// ── Payment Modal ──────────────────────────────────────────────────────────
+
+function PaymentModal({ booking, onClose, onPaid }) {
   const { user } = useAuth();
   const [method, setMethod] = useState("mpesa");
-  const [phone, setPhone] = useState("");
-  const [paying, setPaying] = useState(false);
-  const [step, setStep] = useState("choose"); // choose | pending | success | error
-  const [errorMsg, setErrorMsg] = useState("");
-  const [mpesaRef, setMpesaRef] = useState(null);
+
+  const amount = booking.total_cost ?? booking.total ?? booking.amount ?? 0;
+  const title = booking.title || booking.destination_name || "Booking";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <div>
+            <h2 className="font-display text-xl text-foreground">Complete Payment</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground truncate max-w-[240px]">{title}</p>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-muted text-muted-foreground transition">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Amount */}
+        <div className="border-b border-border bg-muted/30 px-6 py-3 flex items-baseline gap-2">
+          <span className="text-xs uppercase tracking-widest text-muted-foreground">Total Due</span>
+          <span className="font-display text-2xl text-foreground ml-auto">${Number(amount).toFixed(2)}</span>
+        </div>
+
+        {/* Method tabs */}
+        <div className="flex border-b border-border">
+          <button
+            onClick={() => setMethod("mpesa")}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs uppercase tracking-widest font-medium transition border-b-2 ${
+              method === "mpesa"
+                ? "border-[var(--color-gold)] text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Smartphone className="h-4 w-4" />
+            M-Pesa
+          </button>
+          <button
+            onClick={() => setMethod("stripe")}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs uppercase tracking-widest font-medium transition border-b-2 ${
+              method === "stripe"
+                ? "border-[var(--color-gold)] text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <CreditCard className="h-4 w-4" />
+            Card
+          </button>
+        </div>
+
+        {/* Panel */}
+        <div className="p-6">
+          {method === "mpesa" ? (
+            <MpesaPanel booking={booking} amount={amount} user={user} onPaid={onPaid} />
+          ) : (
+            <StripePanel booking={booking} amount={amount} user={user} onPaid={onPaid} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MpesaPanel({ booking, amount, user, onPaid }) {
+  const [phone, setPhone] = useState(user?.phone || "");
+  const [stage, setStage] = useState("form"); // form | pending | success | failed
+  const [reference, setReference] = useState(null);
+  const [statusMsg, setStatusMsg] = useState("");
   const pollRef = useRef(null);
 
-  const amountKes = booking.total_cost ? Number(booking.total_cost) : 0;
-  const amountUsd = Math.max(1, Math.round(amountKes / 130));
-  const amountCents = amountUsd * 100;
+  useEffect(() => () => clearInterval(pollRef.current), []);
 
-  useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, []);
-
-  async function pollStatus(reference) {
+  const startPolling = (ref) => {
+    let attempts = 0;
     pollRef.current = setInterval(async () => {
+      attempts++;
       try {
-        const res = await bookingsApi.pollMpesaStatus(reference);
-        const st = (res?.status || res?.data?.status || "").toLowerCase();
-        if (st === "success" || st === "completed") {
+        const result = await paymentsApi.mpesa.getStatus(ref);
+        const s = result?.status ?? result?.data?.status;
+        if (s === "success" || s === "succeeded" || s === "completed") {
           clearInterval(pollRef.current);
-          setStep("success");
-          toast.success("Payment confirmed! Booking approved.");
-          setTimeout(() => onSuccess(), 1500);
-        } else if (st === "failed") {
+          setStage("success");
+          toast.success("Payment successful! Your booking is confirmed.");
+          setTimeout(onPaid, 1500);
+        } else if (s === "failed") {
           clearInterval(pollRef.current);
-          setStep("error");
-          setErrorMsg("Payment was declined. Please try again.");
+          setStage("failed");
+          setStatusMsg("Payment was not completed. Please try again.");
         }
       } catch {
         // keep polling
       }
+      if (attempts >= 20) {
+        clearInterval(pollRef.current);
+        setStage("failed");
+        setStatusMsg("Payment timed out. Check your M-Pesa messages and try again.");
+      }
     }, 3000);
-    // Stop polling after 3 minutes
-    setTimeout(() => {
-      clearInterval(pollRef.current);
-      if (step === "pending") {
-        setStep("error");
-        setErrorMsg("Payment timed out. Please check your M-Pesa messages and try again.");
-      }
-    }, 180000);
-  }
+  };
 
-  async function handleMpesa(e) {
-    e.preventDefault();
-    if (!phone.trim()) { toast.error("Enter your M-Pesa phone number"); return; }
-    setPaying(true);
-    setErrorMsg("");
+  const handlePay = async () => {
+    const raw = phone.trim().replace(/\s+/g, "");
+    if (!raw) { toast.error("Enter your M-Pesa phone number"); return; }
+
+    // Normalise to 254XXXXXXXXX
+    let normalised = raw.startsWith("+") ? raw.slice(1) : raw;
+    if (normalised.startsWith("0")) normalised = "254" + normalised.slice(1);
+    if (!/^254[17]\d{8}$/.test(normalised)) {
+      toast.error("Enter a valid Kenyan phone number (e.g. 0712 345 678)");
+      return;
+    }
+
+    setStage("pending");
     try {
-      const res = await bookingsApi.payMpesa(booking.id, {
-        phone_number: phone.trim(),
-        amount: amountKes || 100,
-        user_id: user?.id,
+      const result = await paymentsApi.mpesa.pay({
+        phone_number: normalised,
+        amount: Number(amount),
+        booking_id: booking.id,
       });
-      const ref = res?.reference || res?.data?.reference;
-      const isMock = res?.mock || res?.data?.mock;
-      setMpesaRef(ref);
+      const ref = result?.reference ?? result?.data?.reference;
+      const isMock = result?.mock ?? result?.data?.mock;
+      setReference(ref);
+
       if (isMock) {
-        setStep("success");
-        toast.success("Payment confirmed (dev mode)! Booking approved.");
-        setTimeout(() => onSuccess(), 1500);
+        setStage("success");
+        toast.success("Payment accepted (dev mode). Booking confirmed.");
+        setTimeout(onPaid, 1500);
       } else {
-        setStep("pending");
-        toast.info("STK Push sent — check your phone to approve payment.");
-        if (ref) pollStatus(ref);
+        setStatusMsg("Check your phone for the M-Pesa STK prompt and enter your PIN.");
+        startPolling(ref);
       }
     } catch (err) {
-      setStep("error");
-      setErrorMsg(err?.message || "Payment initiation failed. Please try again.");
-    } finally {
-      setPaying(false);
+      setStage("form");
+      toast.error(err?.message || "Failed to initiate M-Pesa payment");
     }
+  };
+
+  if (stage === "success") {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+        <p className="font-display text-xl text-foreground">Payment Successful</p>
+        <p className="text-sm text-muted-foreground">Your booking has been confirmed.</p>
+      </div>
+    );
   }
 
-  async function handleStripe(e) {
-    e.preventDefault();
-    setPaying(true);
-    setErrorMsg("");
-    try {
-      const res = await bookingsApi.payStripe(booking.id, {
-        amount: amountCents,
-        currency: "usd",
-        user_id: user?.id,
-      });
-      const clientSecret = res?.clientSecret || res?.data?.clientSecret;
-      // In dev (mock), the booking is auto-confirmed server-side.
-      // In prod with real Stripe, redirect to Stripe checkout or use Stripe.js.
-      if (clientSecret?.includes("_secret_mock")) {
-        setStep("success");
-        toast.success("Payment confirmed (dev mode)! Booking approved.");
-        setTimeout(() => onSuccess(), 1500);
-      } else {
-        // Real Stripe: inform user to complete payment via Stripe.
-        setStep("success");
-        toast.success("Payment initiated. Your booking will be confirmed once payment is processed.");
-        setTimeout(() => onSuccess(), 2000);
-      }
-    } catch (err) {
-      setStep("error");
-      setErrorMsg(err?.message || "Payment failed. Please try again.");
-    } finally {
-      setPaying(false);
-    }
+  if (stage === "failed") {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <XCircle className="h-12 w-12 text-destructive" />
+        <p className="font-display text-xl text-foreground">Payment Failed</p>
+        <p className="text-sm text-muted-foreground">{statusMsg}</p>
+        <button onClick={() => setStage("form")} className="mt-2 rounded-full border border-border px-4 py-2 text-xs uppercase tracking-widest hover:bg-muted transition">
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (stage === "pending") {
+    return (
+      <div className="flex flex-col items-center gap-4 py-6 text-center">
+        <Loader2 className="h-10 w-10 animate-spin text-[var(--color-gold)]" />
+        <p className="font-display text-lg text-foreground">Waiting for M-Pesa…</p>
+        <p className="text-sm text-muted-foreground">{statusMsg || "Processing your payment."}</p>
+        {reference && (
+          <p className="font-mono text-xs text-muted-foreground">Ref: {reference}</p>
+        )}
+      </div>
+    );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-display text-2xl">Pay for Booking</h3>
-          <button onClick={onClose} className="rounded-full p-1 hover:bg-muted text-muted-foreground">✕</button>
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        An STK push will be sent to your Safaricom number. Enter your M-Pesa PIN when prompted.
+      </p>
+      <label className="block">
+        <span className="mb-1 block text-xs uppercase tracking-widest text-muted-foreground">M-Pesa Phone Number</span>
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <span className="text-sm text-muted-foreground select-none">🇰🇪</span>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="0712 345 678"
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
         </div>
-
-        <div className="mb-4 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Booking</span>
-            <span className="font-mono text-xs">{booking.reference_number || booking.id?.slice(0, 8)}</span>
-          </div>
-          <div className="mt-1 flex justify-between font-semibold">
-            <span>Amount Due</span>
-            <span>KES {amountKes > 0 ? amountKes.toLocaleString() : "—"}</span>
-          </div>
-        </div>
-
-        {step === "choose" && (
-          <>
-            <div className="mb-4 flex gap-2">
-              <button
-                onClick={() => setMethod("mpesa")}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm transition ${method === "mpesa" ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 font-medium" : "border-border hover:border-[var(--color-gold)]/50"}`}
-              >
-                <Smartphone className="h-4 w-4" /> M-Pesa
-              </button>
-              <button
-                onClick={() => setMethod("stripe")}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm transition ${method === "stripe" ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 font-medium" : "border-border hover:border-[var(--color-gold)]/50"}`}
-              >
-                <CreditCard className="h-4 w-4" /> Card (Stripe)
-              </button>
-            </div>
-
-            {method === "mpesa" && (
-              <form onSubmit={handleMpesa} className="space-y-4">
-                <div>
-                  <label className="eyebrow mb-1 block text-xs">M-Pesa Phone Number</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. 0712345678 or 254712345678"
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-                    required
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">An STK Push will be sent to this number.</p>
-                </div>
-                <button
-                  type="submit"
-                  disabled={paying}
-                  className="w-full rounded-full bg-[var(--color-gold)] py-2.5 text-xs uppercase tracking-widest text-[var(--color-ink)] disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {paying ? <><Loader2 className="h-4 w-4 animate-spin" /> Initiating…</> : "Pay with M-Pesa"}
-                </button>
-              </form>
-            )}
-
-            {method === "stripe" && (
-              <form onSubmit={handleStripe} className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  You will be charged <strong>${amountUsd} USD</strong> via Stripe.
-                  {amountKes > 0 && ` (≈ KES ${amountKes.toLocaleString()})`}
-                </p>
-                <button
-                  type="submit"
-                  disabled={paying}
-                  className="w-full rounded-full bg-[var(--color-ink)] py-2.5 text-xs uppercase tracking-widest text-[var(--color-cream)] disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {paying ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : "Pay with Card"}
-                </button>
-              </form>
-            )}
-          </>
-        )}
-
-        {step === "pending" && (
-          <div className="py-6 text-center space-y-3">
-            <Loader2 className="mx-auto h-10 w-10 animate-spin text-[var(--color-gold)]" />
-            <p className="font-display text-xl">Waiting for Payment</p>
-            <p className="text-sm text-muted-foreground">Check your phone and approve the M-Pesa request. This page will update automatically.</p>
-            {mpesaRef && <p className="font-mono text-xs text-muted-foreground">Ref: {mpesaRef}</p>}
-          </div>
-        )}
-
-        {step === "success" && (
-          <div className="py-6 text-center space-y-3">
-            <CheckCircle2 className="mx-auto h-10 w-10 text-green-500" />
-            <p className="font-display text-xl">Payment Confirmed!</p>
-            <p className="text-sm text-muted-foreground">Your booking has been approved.</p>
-          </div>
-        )}
-
-        {step === "error" && (
-          <div className="space-y-4">
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              {errorMsg}
-            </div>
-            <button
-              onClick={() => { setStep("choose"); setErrorMsg(""); }}
-              className="w-full rounded-full border border-border py-2.5 text-xs uppercase tracking-widest hover:bg-muted"
-            >
-              Try Again
-            </button>
-          </div>
-        )}
+      </label>
+      <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">Amount (KES)</span>
+        <span className="font-display text-lg text-foreground">{Number(amount).toLocaleString()}</span>
       </div>
+      <button
+        onClick={handlePay}
+        className="w-full rounded-full bg-[var(--color-gold)] py-3 text-xs uppercase tracking-widest font-medium text-[var(--color-ink)] transition hover:brightness-95"
+      >
+        Pay with M-Pesa
+      </button>
+    </div>
+  );
+}
+
+function StripePanel({ booking, amount, user, onPaid }) {
+  const [stage, setStage] = useState("form"); // form | pending | success | failed
+  const [intentId, setIntentId] = useState(null);
+  const [errMsg, setErrMsg] = useState("");
+
+  const handlePay = async () => {
+    setStage("pending");
+    try {
+      const result = await paymentsApi.stripe.createIntent({
+        amount: Math.round(Number(amount) * 100), // cents
+        currency: "usd",
+        metadata: { booking_id: booking.id },
+      });
+      const id = result?.paymentIntentId ?? result?.data?.paymentIntentId;
+      setIntentId(id);
+      setStage("success");
+      toast.success("Payment intent created. Complete payment via your card processor.");
+      setTimeout(onPaid, 2000);
+    } catch (err) {
+      setStage("failed");
+      setErrMsg(err?.message || "Failed to initiate card payment.");
+    }
+  };
+
+  if (stage === "pending") {
+    return (
+      <div className="flex flex-col items-center gap-4 py-6 text-center">
+        <Loader2 className="h-10 w-10 animate-spin text-[var(--color-gold)]" />
+        <p className="text-sm text-muted-foreground">Creating payment intent…</p>
+      </div>
+    );
+  }
+
+  if (stage === "success") {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+        <p className="font-display text-xl text-foreground">Payment Initiated</p>
+        <p className="text-sm text-muted-foreground">Your card payment has been initiated and is being processed.</p>
+        {intentId && <p className="font-mono text-xs text-muted-foreground">Intent: {intentId}</p>}
+      </div>
+    );
+  }
+
+  if (stage === "failed") {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <XCircle className="h-12 w-12 text-destructive" />
+        <p className="font-display text-xl text-foreground">Payment Failed</p>
+        <p className="text-sm text-muted-foreground">{errMsg}</p>
+        <button onClick={() => setStage("form")} className="mt-2 rounded-full border border-border px-4 py-2 text-xs uppercase tracking-widest hover:bg-muted transition">
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Pay securely with your Visa, Mastercard, or American Express card.
+      </p>
+      <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">Total (USD)</span>
+        <span className="font-display text-lg text-foreground">${Number(amount).toFixed(2)}</span>
+      </div>
+      <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground flex items-center gap-2">
+        <CreditCard className="h-4 w-4 shrink-0" />
+        Card details are processed securely via Stripe
+      </div>
+      <button
+        onClick={handlePay}
+        className="w-full rounded-full bg-foreground py-3 text-xs uppercase tracking-widest font-medium text-background transition hover:opacity-90"
+      >
+        Pay ${Number(amount).toFixed(2)} with Card
+      </button>
     </div>
   );
 }

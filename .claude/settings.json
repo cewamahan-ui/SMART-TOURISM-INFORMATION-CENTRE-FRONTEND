@@ -7,7 +7,23 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000__TRACKED_VAR__)",
       "Bash(echo \"PID: $!\")",
       "Bash(curl -s -X POST http://localhost:5000/api/v1/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"person1@gmail.com\",\"password\":\"Safari@2024\",\"username\":\"person1234\",\"full_name\":\"Alvin Sande\"}')",
-      "Bash(curl -s -X POST http://localhost:5000/api/v1/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"person2@gmail.com\",\"password\":\"Safari@2024\",\"username\":\"person1234\",\"full_name\":\"Alvin Sande\"}')"
+      "Bash(curl -s -X POST http://localhost:5000/api/v1/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"person2@gmail.com\",\"password\":\"Safari@2024\",\"username\":\"person1234\",\"full_name\":\"Alvin Sande\"}')",
+      "Bash(xargs cat)",
+      "Bash(sort -k6,7)",
+      "Bash(curl -s \"http://localhost:5000/api/v1/attractions/?per_page=5\")",
+      "Bash(curl -s -X GET \"http://localhost:5000/api/v1/attractions/ea81becf-ab6d-4a95-9459-70df5a2d53b5\")",
+      "Bash(netstat -tlnp)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:8080/attractions\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:8080/explore\")",
+      "Bash(curl -s \"http://localhost:8080/attractions\")",
+      "Bash(curl -s \"http://localhost:8080/explore\" -L)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:8080/bookings\")",
+      "Bash(cat /home/alvin/launch_test/SMART-TOURISM-INFORMATION-CENTRE-FRONTEND/src/routes/explore.\\\\$attractionId.jsx)",
+      "Read(//home/alvin/launch_test/SMART-TOURISM-INFORMATION-CENTRE-FRONTEND/src/routes/**)",
+      "Bash(node --input-type=module --eval ' *)",
+      "Bash(head -5 /home/alvin/launch_test/SMART-TOURISM-INFORMATION-CENTRE-FRONTEND/src/routes/explore.\\\\$attractionId.jsx)",
+      "Bash(npx vite *)",
+      "Bash(grep -n \"removeFav\\\\|remove\\\\|favoritesApi\" /home/alvin/launch_test/SMART-TOURISM-INFORMATION-CENTRE-FRONTEND/src/routes/explore.\\\\$attractionId.jsx | head -20)"
     ]
   }
 }

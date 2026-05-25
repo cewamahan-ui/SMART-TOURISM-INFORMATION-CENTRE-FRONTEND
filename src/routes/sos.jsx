@@ -1,8 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, Phone, MapPin, ShieldAlert, Radio } from "lucide-react";
+import { AlertTriangle, Phone, MapPin, ShieldAlert, Radio, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api, getToken } from "@/lib/api";
+import { api, getToken, publicApi } from "@/lib/api";
+
+const SOS_CATEGORIES = [
+  { value: "medical",           label: "Medical Emergency",    emoji: "🏥" },
+  { value: "wildlife",          label: "Wildlife Encounter",   emoji: "🦁" },
+  { value: "lost",              label: "Lost / Stranded",      emoji: "🗺️" },
+  { value: "vehicle_breakdown", label: "Vehicle Breakdown",    emoji: "🚗" },
+  { value: "weather",           label: "Severe Weather",       emoji: "⛈️" },
+  { value: "crime",             label: "Crime / Security",     emoji: "🚨" },
+  { value: "other",             label: "Other Emergency",      emoji: "⚠️" },
+];
 
 export const Route = createFileRoute("/sos")({
   head: () => ({ meta: [{ title: "Emergency Response — SafariSmart" }] }),
@@ -14,7 +25,14 @@ function SosPage() {
   const [sending, setSending] = useState(false);
   const [coords, setCoords] = useState(null);
   const [coordsError, setCoordsError] = useState("");
+  const [category, setCategory] = useState("medical");
   const holdTimer = useRef(null);
+
+  const contactsQuery = useQuery({
+    queryKey: ["emergency-contacts"],
+    queryFn: publicApi.emergencyContacts,
+    retry: false,
+  });
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -46,7 +64,7 @@ function SosPage() {
     try {
       await api("/api/v1/sos", {
         method: "POST",
-        json: { lat: coords.lat, lng: coords.lng, severity: "high", category: "injury" },
+        json: { lat: coords.lat, lng: coords.lng, severity: "high", category },
       });
       setTriggered(true);
       toast.success("Signal sent · Unit Alpha-01 dispatched", { duration: 6000 });
@@ -93,7 +111,25 @@ function SosPage() {
           Hold button for 1.5 seconds to confirm dispatch
         </p>
 
-        <div className="mt-14 grid gap-8 md:grid-cols-12">
+        {/* Category selector */}
+        <div className="mt-10">
+          <p className="mb-3 text-xs uppercase tracking-widest text-white/50">Type of Emergency</p>
+          <div className="flex flex-wrap gap-2">
+            {SOS_CATEGORIES.map((c) => (
+              <button key={c.value} onClick={() => setCategory(c.value)}
+                disabled={triggered || sending}
+                className={`rounded-full border px-4 py-2 text-xs uppercase tracking-widest transition disabled:opacity-40 ${
+                  category === c.value
+                    ? "border-destructive bg-destructive/20 text-[var(--color-cream)]"
+                    : "border-white/20 text-white/60 hover:border-white/40 hover:text-white/80"
+                }`}>
+                {c.emoji} {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-10 grid gap-8 md:grid-cols-12">
           <div className="md:col-span-7">
             <button
               onMouseDown={handleMouseDown}
@@ -116,10 +152,32 @@ function SosPage() {
           </div>
 
           <div className="md:col-span-5 space-y-4">
-            <Tile icon={Phone} label="Call Field Operations" value="+254 700 123 911" />
             <Tile icon={MapPin} label="Your Coordinates" value={coordLabel} />
-            <Tile icon={ShieldAlert} label="Nearest Unit" value="MARA_RANGER_UNIT_03 · 11 km" />
-            <Tile icon={AlertTriangle} label="Active Alerts" value="1 ranger advisory in Maasai Mara" />
+
+            {contactsQuery.isLoading && (
+              <div className="flex items-center gap-2 text-white/50 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading emergency contacts…
+              </div>
+            )}
+
+            {arrayifyContacts(contactsQuery.data).length > 0
+              ? arrayifyContacts(contactsQuery.data).slice(0, 4).map((contact, idx) => (
+                  <Tile
+                    key={contact.id ?? idx}
+                    icon={contact.type === "police" ? ShieldAlert : contact.type === "medical" ? AlertTriangle : Phone}
+                    label={contact.name || contact.title || contact.type || "Emergency Contact"}
+                    value={contact.phone || contact.phone_number || contact.contact || "—"}
+                    href={contact.phone ? `tel:${contact.phone}` : undefined}
+                  />
+                ))
+              : !contactsQuery.isLoading && (
+                  <>
+                    <Tile icon={Phone} label="Kenya Emergency" value="999 / 112" href="tel:999" />
+                    <Tile icon={ShieldAlert} label="Kenya Police" value="+254 20 341 4020" href="tel:+254203414020" />
+                    <Tile icon={AlertTriangle} label="Ambulance (AMREF)" value="+254 20 600 2299" href="tel:+254206002299" />
+                  </>
+                )
+            }
           </div>
         </div>
       </section>
@@ -127,14 +185,35 @@ function SosPage() {
   );
 }
 
-function Tile({ icon: Icon, label, value }) {
+function Tile({ icon: Icon, label, value, href }) {
+  const inner = (
+    <>
+      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-gold)]" />
+      <div className="min-w-0">
+        <div className="eyebrow !text-white/50">{label}</div>
+        <div className="mt-1 font-display text-xl truncate">{value}</div>
+      </div>
+    </>
+  );
+  if (href) {
+    return (
+      <a href={href} className="flex items-start gap-4 rounded border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition">
+        {inner}
+      </a>
+    );
+  }
   return (
     <div className="flex items-start gap-4 rounded border border-white/10 bg-white/5 p-5">
-      <Icon className="mt-0.5 h-5 w-5 text-[var(--color-gold)]" />
-      <div>
-        <div className="eyebrow !text-white/50">{label}</div>
-        <div className="mt-1 font-display text-xl">{value}</div>
-      </div>
+      {inner}
     </div>
   );
+}
+
+function arrayifyContacts(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (Array.isArray(v.data)) return v.data;
+  if (Array.isArray(v.contacts)) return v.contacts;
+  if (Array.isArray(v.items)) return v.items;
+  return [];
 }

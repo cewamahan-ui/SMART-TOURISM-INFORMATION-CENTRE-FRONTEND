@@ -1,29 +1,25 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useQuery } from "@tanstack/react-query";
-import { tourPackagesApi } from "@/lib/api";
+import { tourPackagesApi, bookingsApi } from "@/lib/api";
 import { useI18n } from "@/language/i18n-provider";
-import { Clock, Users, Zap, CheckCircle } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { Clock, Users, Zap, CheckCircle, X, CreditCard } from "lucide-react";
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
+import { CURRENCIES, CURRENCY_OPTIONS, CURRENCY_RATES } from "@/lib/currencies";
 
 export const Route = createFileRoute("/tour-packages")({
   head: () => ({ meta: [{ title: "Tour Packages — SafariSmart" }] }),
   component: TourPackagesPage,
 });
 
-
-const CURRENCY_OPTIONS = ["USD", "KES", "EUR"];
-const CURRENCY_RATES = {
-  USD: 1,
-  KES: 130,
-  EUR: 0.92,
-};
-
 function TourPackagesPage() {
   const { t } = useI18n();
   const [q, setQ] = useState("");
   const [currency, setCurrency] = useState("USD");
+  const [bookingPkg, setBookingPkg] = useState(null);
 
   const packagesQuery = useQuery({
     queryKey: ["tour-packages"],
@@ -65,7 +61,7 @@ function TourPackagesPage() {
               className="w-32 rounded border border-border px-2 py-1 text-sm"
             >
               {CURRENCY_OPTIONS.map(cur => (
-                <option key={cur} value={cur}>{cur}</option>
+                <option key={cur} value={cur}>{CURRENCIES[cur].flag} {cur} — {CURRENCIES[cur].name}</option>
               ))}
             </select>
           </div>
@@ -81,17 +77,21 @@ function TourPackagesPage() {
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2">
           {packages.map((pkg) => (
-            <PackageCard key={pkg.id} pkg={pkg} t={t} currency={currency} />
+            <PackageCard key={pkg.id} pkg={pkg} t={t} currency={currency} onBook={() => setBookingPkg(pkg)} />
           ))}
         </div>
       </section>
 
       <SiteFooter />
+
+      {bookingPkg && (
+        <BookingModal pkg={bookingPkg} currency={currency} onClose={() => setBookingPkg(null)} />
+      )}
     </div>
   );
 }
 
-function PackageCard({ pkg, t, currency }) {
+function PackageCard({ pkg, t, currency, onBook }) {
   const inclusions = Array.isArray(pkg.inclusions)
     ? pkg.inclusions
     : typeof pkg.inclusions === "string"
@@ -165,10 +165,129 @@ function PackageCard({ pkg, t, currency }) {
               )}
             </div>
           )}
-          <button className="rounded-full bg-[var(--color-gold)] px-5 py-2 text-xs uppercase tracking-widest text-[var(--color-ink)] transition hover:brightness-110">
+          <button onClick={onBook}
+            className="rounded-full bg-[var(--color-gold)] px-5 py-2 text-xs uppercase tracking-widest text-[var(--color-ink)] transition hover:brightness-110">
             {t("tourPackages.book", "Book Package")}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BookingModal({ pkg, currency, onClose }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [participants, setParticipants] = useState(1);
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const priceUsd = Number(pkg.price_per_person || pkg.price || 0);
+  const rate = CURRENCY_RATES[currency] || 1;
+  const totalDisplay = (priceUsd * rate * participants).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      navigate({ to: "/login" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await bookingsApi.createTour({
+        package_id: pkg.id,
+        participants: Number(participants),
+        notes: notes.trim() || undefined,
+      });
+      toast.success("Booking created! Proceed to payment in My Bookings.");
+      onClose();
+      navigate({ to: "/bookings" });
+    } catch (err) {
+      toast.error(err?.message || "Failed to create booking. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="font-display text-2xl leading-tight">{pkg.name}</h2>
+            <p className="mt-1 text-xs text-muted-foreground uppercase tracking-widest">
+              {pkg.duration_days ? `${pkg.duration_days} days · ` : ""}
+              {currency} {(priceUsd * rate).toLocaleString(undefined, { maximumFractionDigits: 0 })} / person
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-muted ml-4 shrink-0">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {!user && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            You must be signed in to book a tour. You'll be redirected to login.
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1">
+              Number of Participants
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={pkg.max_group_size || pkg.max_participants || 20}
+              value={participants}
+              onChange={(e) => setParticipants(Math.max(1, Number(e.target.value)))}
+              className="input-base w-32"
+              required
+            />
+            {pkg.max_group_size && (
+              <p className="mt-1 text-xs text-muted-foreground">Max {pkg.max_group_size} per booking</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1">
+              Special Requests / Notes
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              className="input-base resize-none w-full"
+              placeholder="Dietary requirements, accessibility needs, preferred activities…"
+            />
+          </div>
+
+          {/* Total */}
+          <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 flex items-center justify-between">
+            <span className="text-xs uppercase tracking-widest text-muted-foreground">Estimated Total</span>
+            <span className="font-display text-xl">{currency} {totalDisplay}</span>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            A booking will be created in <strong>pending</strong> status. You can complete payment on the <strong>My Bookings</strong> page using M-Pesa or card.
+          </p>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[var(--color-gold)] px-5 py-2.5 text-xs uppercase tracking-widest text-[var(--color-ink)] disabled:opacity-60 hover:brightness-110 transition"
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              {submitting ? "Creating booking…" : user ? "Confirm & Book" : "Sign in to Book"}
+            </button>
+            <button type="button" onClick={onClose}
+              className="rounded-full border border-border px-5 py-2.5 text-xs uppercase tracking-widest hover:bg-muted">
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

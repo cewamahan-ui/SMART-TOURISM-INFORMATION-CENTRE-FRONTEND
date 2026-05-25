@@ -19,6 +19,8 @@ export const sw = {
     sosEmergency: "Dharura ya SOS",
     nav: {
       explore: "Chunguza",
+      attractions: "Vivutio",
+      cultureHub: "Kituo cha Utamaduni",
       itinerary: "Ratiba",
       accommodations: "Malazi",
       transport: "Usafiri",

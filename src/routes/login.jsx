@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { authApi } from "@/lib/api";
 import authSide from "@/assets/background_images/hero-serengeti.jpg";
-import { Mail, Lock, Eye, ArrowRight } from "lucide-react";
+import { Mail, Lock, Eye, ArrowRight, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 export const Route = createFileRoute("/login")({
     head: () => ({
@@ -17,6 +18,24 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) { toast.error("Enter your email address"); return; }
+    setResetLoading(true);
+    try {
+      await authApi.passwordReset({ email: resetEmail.trim() });
+      setResetSent(true);
+    } catch (err) {
+      toast.error(err?.message || "Could not send reset email. Check the address and try again.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
   // Google sign-in handler
   const handleGoogleSignIn = () => {
     // Redirect to backend Google OAuth endpoint
@@ -68,6 +87,16 @@ function LoginPage() {
                   <Eye className="h-4 w-4"/>
                 </button>}/>
 
+            <div className="text-right -mt-3">
+              <button
+                type="button"
+                onClick={() => { setShowReset(true); setResetEmail(email); setResetSent(false); }}
+                className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             <button type="submit" disabled={loading} className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-ink)] px-7 py-3.5 text-sm uppercase tracking-widest text-[var(--color-cream)] transition hover:brightness-110 disabled:opacity-60">
               {loading ? "Entering…" : "Enter Expedition"}
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5"/>
@@ -93,6 +122,62 @@ function LoginPage() {
           </p>
         </div>
       </main>
+
+      {/* Password Reset Modal */}
+      {showReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-2xl">
+            {resetSent ? (
+              <div className="text-center">
+                <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
+                <h2 className="mt-4 font-display text-2xl">Email Sent</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Check your inbox at <strong>{resetEmail}</strong> for a password reset link.
+                </p>
+                <button
+                  onClick={() => setShowReset(false)}
+                  className="mt-6 inline-flex rounded-full bg-[var(--color-ink)] px-6 py-2.5 text-xs uppercase tracking-widest text-[var(--color-cream)] transition hover:brightness-110"
+                >
+                  Back to Login
+                </button>
+              </div>
+            ) : (
+              <>
+                <h2 className="font-display text-2xl">Reset Password</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Enter your account email and we'll send a reset link.
+                </p>
+                <form onSubmit={handlePasswordReset} className="mt-6 space-y-4">
+                  <Field
+                    icon={<Mail className="h-4 w-4" />}
+                    label="Email Address"
+                    type="email"
+                    value={resetEmail}
+                    onChange={setResetEmail}
+                    required
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowReset(false)}
+                      className="flex-1 rounded-full border border-border py-2.5 text-xs uppercase tracking-widest text-muted-foreground transition hover:bg-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={resetLoading}
+                      className="flex-1 rounded-full bg-[var(--color-ink)] py-2.5 text-xs uppercase tracking-widest text-[var(--color-cream)] transition hover:brightness-110 disabled:opacity-60"
+                    >
+                      {resetLoading ? "Sending…" : "Send Link"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>);
 }
 export function Field({ label, icon, right, value, onChange, ...rest }) {

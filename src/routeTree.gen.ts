@@ -27,6 +27,7 @@ import { Route as FavouritesRouteImport } from './routes/favourites'
 import { Route as FavoritesRouteImport } from './routes/favorites'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as EventsRouteImport } from './routes/events'
+import { Route as CultureHubRouteImport } from './routes/culture-hub'
 import { Route as BusinessDashboardRouteImport } from './routes/business-dashboard'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as AttractionsRouteImport } from './routes/attractions'
@@ -125,6 +126,11 @@ const EventsRoute = EventsRouteImport.update({
   path: '/events',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CultureHubRoute = CultureHubRouteImport.update({
+  id: '/culture-hub',
+  path: '/culture-hub',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BusinessDashboardRoute = BusinessDashboardRouteImport.update({
   id: '/business-dashboard',
   path: '/business-dashboard',
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/attractions': typeof AttractionsRoute
   '/bookings': typeof BookingsRoute
   '/business-dashboard': typeof BusinessDashboardRoute
+  '/culture-hub': typeof CultureHubRoute
   '/events': typeof EventsRoute
   '/explore': typeof ExploreRouteWithChildren
   '/favorites': typeof FavoritesRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/attractions': typeof AttractionsRoute
   '/bookings': typeof BookingsRoute
   '/business-dashboard': typeof BusinessDashboardRoute
+  '/culture-hub': typeof CultureHubRoute
   '/events': typeof EventsRoute
   '/explore': typeof ExploreRouteWithChildren
   '/favorites': typeof FavoritesRoute
@@ -223,6 +231,7 @@ export interface FileRoutesById {
   '/attractions': typeof AttractionsRoute
   '/bookings': typeof BookingsRoute
   '/business-dashboard': typeof BusinessDashboardRoute
+  '/culture-hub': typeof CultureHubRoute
   '/events': typeof EventsRoute
   '/explore': typeof ExploreRouteWithChildren
   '/favorites': typeof FavoritesRoute
@@ -252,6 +261,7 @@ export interface FileRouteTypes {
     | '/attractions'
     | '/bookings'
     | '/business-dashboard'
+    | '/culture-hub'
     | '/events'
     | '/explore'
     | '/favorites'
@@ -279,6 +289,7 @@ export interface FileRouteTypes {
     | '/attractions'
     | '/bookings'
     | '/business-dashboard'
+    | '/culture-hub'
     | '/events'
     | '/explore'
     | '/favorites'
@@ -306,6 +317,7 @@ export interface FileRouteTypes {
     | '/attractions'
     | '/bookings'
     | '/business-dashboard'
+    | '/culture-hub'
     | '/events'
     | '/explore'
     | '/favorites'
@@ -334,6 +346,7 @@ export interface RootRouteChildren {
   AttractionsRoute: typeof AttractionsRoute
   BookingsRoute: typeof BookingsRoute
   BusinessDashboardRoute: typeof BusinessDashboardRoute
+  CultureHubRoute: typeof CultureHubRoute
   EventsRoute: typeof EventsRoute
   ExploreRoute: typeof ExploreRouteWithChildren
   FavoritesRoute: typeof FavoritesRoute
@@ -482,6 +495,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/culture-hub': {
+      id: '/culture-hub'
+      path: '/culture-hub'
+      fullPath: '/culture-hub'
+      preLoaderRoute: typeof CultureHubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/business-dashboard': {
       id: '/business-dashboard'
       path: '/business-dashboard'
@@ -552,6 +572,7 @@ const rootRouteChildren: RootRouteChildren = {
   AttractionsRoute: AttractionsRoute,
   BookingsRoute: BookingsRoute,
   BusinessDashboardRoute: BusinessDashboardRoute,
+  CultureHubRoute: CultureHubRoute,
   EventsRoute: EventsRoute,
   ExploreRoute: ExploreRouteWithChildren,
   FavoritesRoute: FavoritesRoute,

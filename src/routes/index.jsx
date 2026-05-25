@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Accessibility, Languages, QrCode, ArrowRight } from "lucide-react";
 import { LANDING_PAGE_VIDEO } from "@/lib/media-assets";
 import { useI18n } from "@/language/i18n-provider";
+import QRCode from "react-qr-code";
 
 export const Route = createFileRoute("/")({
     component: KioskLanding,
@@ -129,13 +130,14 @@ function KioskLanding() {
                   </p>
                 </div>
 
-                <div className="grid h-24 w-24 grid-cols-6 gap-1 rounded-lg bg-[var(--color-cream)] p-2">
-                  {[1, 1, 0, 1, 0, 1,
-                    0, 1, 1, 0, 1, 0,
-                    1, 0, 1, 1, 0, 1,
-                    1, 1, 0, 1, 1, 0,
-                    0, 1, 0, 1, 0, 1,
-                    1, 0, 1, 0, 1, 1].map((v, i) => (<span key={i} className={"rounded-sm " + (v ? "bg-[var(--color-ink)]" : "bg-transparent")}/>))}
+                <div className="rounded-lg bg-white p-2 shadow-sm">
+                  <QRCode
+                    value={typeof window !== "undefined" ? `${window.location.origin}/explore` : "https://safarismart.app/explore"}
+                    size={88}
+                    bgColor="#ffffff"
+                    fgColor="#17130d"
+                    level="M"
+                  />
                 </div>
               </div>
 

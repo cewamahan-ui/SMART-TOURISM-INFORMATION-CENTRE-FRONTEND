@@ -19,6 +19,8 @@ export const fr = {
     sosEmergency: "Urgence SOS",
     nav: {
       explore: "Explorer",
+      attractions: "Attractions",
+      cultureHub: "Centre Culturel",
       itinerary: "Itineraire",
       accommodations: "Hebergements",
       transport: "Transport",
